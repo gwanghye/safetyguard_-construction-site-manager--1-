@@ -1,0 +1,9 @@
+{
+  "name": "SafetyGuard: Construction Site Manager",
+  "description": "A comprehensive mobile-first safety inspection and project management application for construction sites, featuring real-time dashboards, AI-powered risk analysis, and QR-based field inspections.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone",
+    "geolocation"
+  ]
+}
