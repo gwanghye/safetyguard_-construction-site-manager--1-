@@ -63,8 +63,7 @@ export const subscribeToLogs = (storeId: string, callback: (logs: InspectionLog[
 
     const q = query(
         collection(db, 'logs'),
-        where('storeId', '==', storeId),
-        orderBy('timestamp', 'desc')
+        where('storeId', '==', storeId)
     );
 
     return onSnapshot(q, (snapshot) => {
@@ -72,6 +71,10 @@ export const subscribeToLogs = (storeId: string, callback: (logs: InspectionLog[
             id: doc.id,
             ...doc.data()
         })) as InspectionLog[];
+
+        // Sort client-side to avoid Firestore composite index requirement
+        logs.sort((a, b) => b.timestamp - a.timestamp);
+
         callback(logs);
     });
 };
