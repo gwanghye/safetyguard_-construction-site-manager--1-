@@ -116,7 +116,8 @@ const App: React.FC = () => {
   const handleAddSite = async (newSite: Site) => {
     if (!activeStore) return;
     try {
-      await addSite({ ...newSite, storeId: activeStore.id });
+      const { id, ...siteData } = newSite;
+      await addSite({ ...siteData, storeId: activeStore.id });
     } catch (error) {
       console.error("Error adding site:", error);
       alert("공사 등록 중 오류가 발생했습니다.");
@@ -126,9 +127,9 @@ const App: React.FC = () => {
   const handleUpdateSite = async (updatedSite: Site) => {
     try {
       await updateSite(updatedSite);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error updating site:", error);
-      alert("공사 수정 중 오류가 발생했습니다.");
+      alert(`공사 수정 중 오류가 발생했습니다: ${error.message}`);
     }
   };
 

@@ -25,8 +25,8 @@ export const subscribeToSites = (storeId: string, callback: (sites: Site[]) => v
 
     return onSnapshot(q, (snapshot) => {
         const sites = snapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
+            ...doc.data(),
+            id: doc.id
         })) as Site[];
         callback(sites);
     });

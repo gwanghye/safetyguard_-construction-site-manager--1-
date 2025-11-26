@@ -86,11 +86,21 @@ const Dashboard: React.FC<DashboardProps> = ({ logs, sites, onAddSite, onUpdateS
         e.preventDefault();
         if (siteForm.name && siteForm.department && siteForm.startDate && siteForm.endDate) {
             if (isEditing && onUpdateSite && siteForm.id) {
-                onUpdateSite(siteForm as Site);
+                const updatedSite: Site = {
+                    id: siteForm.id,
+                    storeId: siteForm.storeId || '',
+                    name: siteForm.name,
+                    floor: siteForm.floor || '1F',
+                    department: siteForm.department,
+                    location: siteForm.location || '',
+                    startDate: siteForm.startDate,
+                    endDate: siteForm.endDate,
+                    status: siteForm.status || '대기'
+                };
+                onUpdateSite(updatedSite);
             } else if (!isEditing && onAddSite) {
                 const site: Site = {
                     id: `site-${Date.now()}`,
-                    // storeId is handled in App.tsx
                     storeId: '',
                     name: siteForm.name!,
                     floor: siteForm.floor || '1F',
@@ -564,29 +574,29 @@ const Dashboard: React.FC<DashboardProps> = ({ logs, sites, onAddSite, onUpdateS
                             <div className="grid grid-cols-4 gap-3">
                                 <div className="col-span-1">
                                     <label className="block text-xs font-bold text-slate-500 mb-1">층</label>
-                                    <input type="text" placeholder="1F" className="w-full p-3 border rounded-lg bg-slate-50" value={siteForm.floor} onChange={e => setSiteForm({ ...siteForm, floor: e.target.value })} required />
+                                    <input type="text" placeholder="1F" className="w-full p-3 border rounded-lg bg-slate-50" value={siteForm.floor || ''} onChange={e => setSiteForm({ ...siteForm, floor: e.target.value })} required />
                                 </div>
                                 <div className="col-span-3">
                                     <label className="block text-xs font-bold text-slate-500 mb-1">공사명</label>
-                                    <input type="text" placeholder="예: 아동복 매장 리뉴얼" className="w-full p-3 border rounded-lg bg-slate-50" value={siteForm.name} onChange={e => setSiteForm({ ...siteForm, name: e.target.value })} required />
+                                    <input type="text" placeholder="예: 아동복 매장 리뉴얼" className="w-full p-3 border rounded-lg bg-slate-50" value={siteForm.name || ''} onChange={e => setSiteForm({ ...siteForm, name: e.target.value })} required />
                                 </div>
                             </div>
                             <div>
                                 <label className="block text-xs font-bold text-slate-500 mb-1">담당 부서</label>
-                                <input type="text" placeholder="예: 시설지원팀" className="w-full p-3 border rounded-lg bg-slate-50" value={siteForm.department} onChange={e => setSiteForm({ ...siteForm, department: e.target.value })} required />
+                                <input type="text" placeholder="예: 시설지원팀" className="w-full p-3 border rounded-lg bg-slate-50" value={siteForm.department || ''} onChange={e => setSiteForm({ ...siteForm, department: e.target.value })} required />
                             </div>
                             <div>
                                 <label className="block text-xs font-bold text-slate-500 mb-1">세부 위치</label>
-                                <input type="text" placeholder="예: 동관 엘리베이터 앞" className="w-full p-3 border rounded-lg bg-slate-50" value={siteForm.location} onChange={e => setSiteForm({ ...siteForm, location: e.target.value })} />
+                                <input type="text" placeholder="예: 동관 엘리베이터 앞" className="w-full p-3 border rounded-lg bg-slate-50" value={siteForm.location || ''} onChange={e => setSiteForm({ ...siteForm, location: e.target.value })} />
                             </div>
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
                                     <label className="block text-xs font-bold text-slate-500 mb-1">시작일</label>
-                                    <input type="date" className="w-full p-3 border rounded-lg bg-slate-50" value={siteForm.startDate} onChange={e => setSiteForm({ ...siteForm, startDate: e.target.value })} required />
+                                    <input type="date" className="w-full p-3 border rounded-lg bg-slate-50" value={siteForm.startDate || ''} onChange={e => setSiteForm({ ...siteForm, startDate: e.target.value })} required />
                                 </div>
                                 <div>
                                     <label className="block text-xs font-bold text-slate-500 mb-1">종료일</label>
-                                    <input type="date" className="w-full p-3 border rounded-lg bg-slate-50" value={siteForm.endDate} onChange={e => setSiteForm({ ...siteForm, endDate: e.target.value })} required />
+                                    <input type="date" className="w-full p-3 border rounded-lg bg-slate-50" value={siteForm.endDate || ''} onChange={e => setSiteForm({ ...siteForm, endDate: e.target.value })} required />
                                 </div>
                             </div>
                             <button type="submit" className="w-full bg-slate-900 text-white py-4 rounded-xl font-bold mt-4">
