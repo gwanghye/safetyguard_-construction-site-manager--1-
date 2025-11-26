@@ -13,34 +13,32 @@ interface ExtendedStore extends Store {
 }
 
 const MOCK_STORES: ExtendedStore[] = [
-  // 백화점
-  { id: 'dept-1', name: '더현대 서울', code: '1111', type: 'DEPARTMENT' },
+  // 백화점 (1111 ~ 1123)
   { id: 'dept-2', name: '압구정본점', code: '1111', type: 'DEPARTMENT' },
-  { id: 'dept-3', name: '무역센터점', code: '1111', type: 'DEPARTMENT' },
-  { id: 'dept-4', name: '천호점', code: '1111', type: 'DEPARTMENT' },
-  { id: 'dept-5', name: '신촌점', code: '1111', type: 'DEPARTMENT' },
-  { id: 'dept-6', name: '미아점', code: '1111', type: 'DEPARTMENT' },
-  { id: 'dept-7', name: '목동점', code: '1111', type: 'DEPARTMENT' },
-  { id: 'dept-8', name: '중동점', code: '1111', type: 'DEPARTMENT' },
-  { id: 'dept-9', name: '판교점', code: '3333', type: 'DEPARTMENT' },
-  { id: 'dept-10', name: '킨텍스점', code: '1111', type: 'DEPARTMENT' },
-  { id: 'dept-11', name: '대구점', code: '1111', type: 'DEPARTMENT' },
-  { id: 'dept-12', name: '울산점', code: '1111', type: 'DEPARTMENT' },
-  { id: 'dept-13', name: '충청점', code: '1111', type: 'DEPARTMENT' },
-  // 디큐브시티 삭제됨
+  { id: 'dept-3', name: '무역센터점', code: '1112', type: 'DEPARTMENT' },
+  { id: 'dept-4', name: '천호점', code: '1113', type: 'DEPARTMENT' },
+  { id: 'dept-5', name: '신촌점', code: '1114', type: 'DEPARTMENT' },
+  { id: 'dept-6', name: '미아점', code: '1115', type: 'DEPARTMENT' },
+  { id: 'dept-7', name: '목동점', code: '1116', type: 'DEPARTMENT' },
+  { id: 'dept-8', name: '중동점', code: '1117', type: 'DEPARTMENT' },
+  { id: 'dept-10', name: '킨텍스점', code: '1118', type: 'DEPARTMENT' },
+  { id: 'dept-12', name: '울산점', code: '1119', type: 'DEPARTMENT' },
+  { id: 'dept-11', name: '더현대 대구점', code: '1120', type: 'DEPARTMENT' },
+  { id: 'dept-13', name: '충청점', code: '1121', type: 'DEPARTMENT' },
+  { id: 'dept-9', name: '판교점', code: '1122', type: 'DEPARTMENT' },
+  { id: 'dept-1', name: '더현대 서울', code: '1123', type: 'DEPARTMENT' },
 
-  // 아울렛 (프리미엄/시티/커넥트 통합)
-  { id: 'outlet-1', name: '현대프리미엄아울렛 김포점', code: '2222', type: 'OUTLET' },
-  { id: 'outlet-2', name: '현대프리미엄아울렛 송도점', code: '2222', type: 'OUTLET' },
-  { id: 'outlet-3', name: '현대프리미엄아울렛 대전점', code: '2222', type: 'OUTLET' },
-  { id: 'outlet-4', name: '현대프리미엄아울렛 스페이스원', code: '2222', type: 'OUTLET' },
-  { id: 'outlet-5', name: '현대프리미엄아울렛 부산점', code: '2222', type: 'OUTLET' },
-  { id: 'outlet-6', name: '커넥트현대 부산', code: '2222', type: 'OUTLET' },
-  { id: 'outlet-7', name: '현대시티아울렛 동대문점', code: '2222', type: 'OUTLET' },
-  { id: 'outlet-8', name: '현대시티아울렛 가산점', code: '2222', type: 'OUTLET' },
-  { id: 'outlet-9', name: '현대시티몰 가든파이브점', code: '2222', type: 'OUTLET' },
-  { id: 'outlet-10', name: '현대시티아울렛 대구점', code: '2222', type: 'OUTLET' },
-  { id: 'outlet-11', name: '현대시티아울렛 청주점', code: '2222', type: 'OUTLET' },
+  // 아울렛 (1124 ~ 1133)
+  { id: 'outlet-1', name: '현대프리미엄아울렛 김포점', code: '1124', type: 'OUTLET' },
+  { id: 'outlet-2', name: '현대프리미엄아울렛 송도점', code: '1125', type: 'OUTLET' },
+  { id: 'outlet-3', name: '현대프리미엄아울렛 대전점', code: '1126', type: 'OUTLET' },
+  { id: 'outlet-4', name: '현대프리미엄아울렛 SPACE1점', code: '1127', type: 'OUTLET' },
+  { id: 'outlet-7', name: '현대아울렛 동대문점', code: '1128', type: 'OUTLET' },
+  { id: 'outlet-9', name: '현대아울렛 가든파이브점', code: '1129', type: 'OUTLET' },
+  { id: 'outlet-10', name: '현대아울렛 대구점', code: '1130', type: 'OUTLET' },
+  { id: 'outlet-8', name: '현대아울렛 가산점', code: '1131', type: 'OUTLET' },
+  { id: 'outlet-5', name: '커넥트현대 부산점', code: '1132', type: 'OUTLET' },
+  { id: 'outlet-11', name: '커넥트현대 청주점', code: '1133', type: 'OUTLET' },
 ];
 
 const App: React.FC = () => {
@@ -135,7 +133,7 @@ const App: React.FC = () => {
   };
 
   const handleDeleteSite = async (siteId: string) => {
-    if (!confirm("정말 삭제하시겠습니까?")) return;
+    // Confirmation is handled in Dashboard component
     try {
       await deleteSite(siteId);
     } catch (error) {
@@ -512,10 +510,11 @@ const App: React.FC = () => {
           )}
           <button
             onClick={() => { setCurrentRole(null); setScannedSiteId(null); }}
-            className="p-2 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors flex items-center gap-1"
-            title="역할 선택으로 돌아가기"
+            className="px-3 py-1.5 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors flex items-center gap-1 font-bold text-sm"
+            title="뒤로가기"
           >
-            <LogOut size={20} />
+            <ArrowLeft size={18} />
+            <span>뒤로가기</span>
           </button>
         </div>
       </header>
