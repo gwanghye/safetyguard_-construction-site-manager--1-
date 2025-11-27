@@ -31,14 +31,27 @@ const Dashboard: React.FC<DashboardProps> = ({ logs, sites, onAddSite, onUpdateS
     });
 
     // Date Selection State
-    const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
+    const [selectedDate, setSelectedDate] = useState<string>(() => {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    });
 
     const today = new Date().toDateString();
     const todayDate = new Date();
     todayDate.setHours(0, 0, 0, 0);
 
     // Filter logs by selected date
-    const todaysLogs = logs.filter(l => new Date(l.timestamp).toDateString() === new Date(selectedDate).toDateString());
+    const todaysLogs = logs.filter(l => {
+        const logDate = new Date(l.timestamp);
+        const year = logDate.getFullYear();
+        const month = String(logDate.getMonth() + 1).padStart(2, '0');
+        const day = String(logDate.getDate()).padStart(2, '0');
+        const logDateStr = `${year}-${month}-${day}`;
+        return logDateStr === selectedDate;
+    });
 
     // Stats
     const warningCount = todaysLogs.filter(l => l.riskLevel === RiskLevel.WARNING).length;
@@ -578,16 +591,16 @@ const Dashboard: React.FC<DashboardProps> = ({ logs, sites, onAddSite, onUpdateS
                                 </div>
                                 <div className="col-span-3">
                                     <label className="block text-xs font-bold text-slate-500 mb-1">공사명</label>
-                                    <input type="text" placeholder="예: 아동복 매장 리뉴얼" className="w-full p-3 border rounded-lg bg-slate-50" value={siteForm.name || ''} onChange={e => setSiteForm({ ...siteForm, name: e.target.value })} required />
+                                    <input type="text" placeholder="예: 프라다 리뉴얼" className="w-full p-3 border rounded-lg bg-slate-50" value={siteForm.name || ''} onChange={e => setSiteForm({ ...siteForm, name: e.target.value })} required />
                                 </div>
                             </div>
                             <div>
                                 <label className="block text-xs font-bold text-slate-500 mb-1">담당 부서</label>
-                                <input type="text" placeholder="예: 시설지원팀" className="w-full p-3 border rounded-lg bg-slate-50" value={siteForm.department || ''} onChange={e => setSiteForm({ ...siteForm, department: e.target.value })} required />
+                                <input type="text" placeholder="예: 명품잡화팀" className="w-full p-3 border rounded-lg bg-slate-50" value={siteForm.department || ''} onChange={e => setSiteForm({ ...siteForm, department: e.target.value })} required />
                             </div>
                             <div>
                                 <label className="block text-xs font-bold text-slate-500 mb-1">세부 위치</label>
-                                <input type="text" placeholder="예: 동관 엘리베이터 앞" className="w-full p-3 border rounded-lg bg-slate-50" value={siteForm.location || ''} onChange={e => setSiteForm({ ...siteForm, location: e.target.value })} />
+                                <input type="text" placeholder="예: ES 상행 앞" className="w-full p-3 border rounded-lg bg-slate-50" value={siteForm.location || ''} onChange={e => setSiteForm({ ...siteForm, location: e.target.value })} />
                             </div>
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
