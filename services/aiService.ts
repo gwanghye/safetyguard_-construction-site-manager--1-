@@ -50,19 +50,24 @@ export const analyzeSafetyPhoto = async (base64Image: string): Promise<{ risk: s
   const ai = getAiClient();
   if (!ai) return { risk: '미확인', description: "AI 서비스 불가" };
 
-  try {
-    // Remove data URL prefix if present
-    const cleanBase64 = base64Image.replace(/^data:image\/(png|jpg|jpeg|webp);base64,/, "");
+ try {
+        // Remove data URL prefix if present
+        const cleanBase64 = base64Image.replace(/^data:image\/(png|jpg|jpeg|webp);base64,/, "");
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: {
-        parts: [
-          { inlineData: { mimeType: 'image/jpeg', data: cleanBase64 } },
-          { text: "이 건설 현장 사진을 분석해주세요. 1. 주요 안전 위험 수준을 판별하세요 (정상, 주의, 경고). 2. 위험 요소나 안전 상태에 대해 한 문장으로 한국어 설명을 제공하세요." }
-        ]
-      }
-    });
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: {
+                parts: [
+                    { inlineData: { mimeType: 'image/jpeg', data: cleanBase64 } },
+                    { text: `이 건설 현장 사진을 분석해주세요.
+                    1. 주요 안전 위험 수준을 판별하세요 (정상, 주의, 경고).
+                    2. 위험도 판단: 너무 엄격하게 판단하지 마세요. 명확하고 심각한 위험(화재, 붕괴 등)이 없다면 '정상' 또는 '주의'로 판단하세요.
+                    3. 위험 요소나 안전상태에 대해 한 문장으로 한국어 설명을 제공하세요.
+                    4. 설명: 사진의 상황을 아주 짧은 한 문장(20자 내외)으로 요약하세요.
+                    5. 제약: 마크다운 기호(**, *)를 절대 넣지 마세요.` }
+                ]
+            }
+        });
 
     const text = response.text || "";
     const riskMatch = text.match(/(정상|주의|경고)/i);
