@@ -256,7 +256,7 @@ const Dashboard: React.FC<DashboardProps> = ({ logs, sites, onAddSite, onUpdateS
                     <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
                         <div className="flex justify-between items-start mb-4">
                             <div>
-                                <h2 className="text-xl font-bold text-slate-800">{storeName || '전체'} 안전 현황</h2>
+                                <h2 className="text-xl font-bold text-slate-500">{storeName || '전체'} 안전 현황</h2>{/* Updated color */}
                                 <div className="flex items-center gap-2 mt-1">
                                     <input
                                         type="date"
