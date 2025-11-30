@@ -267,21 +267,21 @@ const Dashboard: React.FC<DashboardProps> = ({ logs, sites, onAddSite, onUpdateS
                                     <span className="text-slate-400 text-xs">기준 집계</span>
                                 </div>
                             </div>
-                            <div className="flex gap-2">
-                                <div className="px-3 py-2 bg-blue-50 rounded-lg text-center min-w-[60px]">
-                                    <div className="text-[10px] text-blue-600 font-bold">시설점검</div>
+                            <div className="flex gap-1">
+                                <div className="px-2 py-2 bg-blue-50 rounded-lg text-center min-w-[50px]">
+                                    <div className="text-[10px] text-blue-600 font-bold whitespace-nowrap">시설점검</div>
                                     <div className="text-lg font-bold text-blue-700">{facilityChecks}</div>
                                 </div>
-                                <div className="px-3 py-2 bg-emerald-50 rounded-lg text-center min-w-[60px]">
-                                    <div className="text-[10px] text-emerald-600 font-bold">안전점검</div>
+                                <div className="px-2 py-2 bg-emerald-50 rounded-lg text-center min-w-[50px]">
+                                    <div className="text-[10px] text-emerald-600 font-bold whitespace-nowrap">안전점검</div>
                                     <div className="text-lg font-bold text-emerald-700">{safetyChecks}</div>
                                 </div>
-                                <div className="px-3 py-2 bg-purple-50 rounded-lg text-center min-w-[60px]">
-                                    <div className="text-[10px] text-purple-600 font-bold">영업점검</div>
+                                <div className="px-2 py-2 bg-purple-50 rounded-lg text-center min-w-[50px]">
+                                    <div className="text-[10px] text-purple-600 font-bold whitespace-nowrap">영업점검</div>
                                     <div className="text-lg font-bold text-purple-700">{salesChecks}</div>
                                 </div>
-                                <div className="px-3 py-2 bg-red-50 rounded-lg text-center min-w-[60px]">
-                                    <div className="text-[10px] text-red-600 font-bold">위험</div>
+                                <div className="px-2 py-2 bg-red-50 rounded-lg text-center min-w-[50px]">
+                                    <div className="text-[10px] text-red-600 font-bold whitespace-nowrap">위험</div>
                                     <div className="text-lg font-bold text-red-700">{warningCount}</div>
                                 </div>
                             </div>
@@ -291,10 +291,10 @@ const Dashboard: React.FC<DashboardProps> = ({ logs, sites, onAddSite, onUpdateS
                         <div className="space-y-2">
                             <div className="flex justify-between text-xs font-bold text-slate-600">
                                 <span>점검 진행률 (금일 공사중 현장 대비)</span>
-                                <span>{Math.round((todaysLogs.length / (sortedSites.length * 2 || 1)) * 100)}%</span>
+                                <span>{Math.round((todaysLogs.length / (sortedSites.length * 3 || 1)) * 100)}%</span>
                             </div>
                             <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                                <div className="bg-slate-800 h-full rounded-full transition-all duration-1000" style={{ width: `${Math.min(100, (todaysLogs.length / (sortedSites.length * 2 || 1)) * 100)}%` }}></div>
+                                <div className="bg-slate-800 h-full rounded-full transition-all duration-1000" style={{ width: `${Math.min(100, (todaysLogs.length / (sortedSites.length * 3 || 1)) * 100)}%` }}></div>
                             </div>
                         </div>
                     </div>
