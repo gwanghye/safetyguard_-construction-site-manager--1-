@@ -256,7 +256,7 @@ const Dashboard: React.FC<DashboardProps> = ({ logs, sites, onAddSite, onUpdateS
                     <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
                         <div className="flex flex-col md:flex-row justify-between items-start mb-4 gap-4 md:gap-0">
                             <div>
-                                <h2 className="text-sm md:text-lg font-bold text-slate-900">{storeName || '전체'} 안전 현황</h2>
+                                <h2 className="text-lg md:text-xl font-bold text-slate-900">{storeName || '전체'} 안전 현황</h2>
                                 <div className="flex items-center gap-2 mt-1">
                                     <input
                                         type="date"
@@ -268,21 +268,21 @@ const Dashboard: React.FC<DashboardProps> = ({ logs, sites, onAddSite, onUpdateS
                                 </div>
                             </div>
                             <div className="flex gap-2 w-full md:w-auto justify-between md:justify-start">
-                                <div className="flex-1 px-1.5 py-2 bg-blue-50 rounded-lg text-center min-w-[40px]">
-                                    <div className="text-[9px] text-blue-600 font-bold whitespace-nowrap">시설점검</div>
-                                    <div className="text-base font-bold text-blue-700">{facilityChecks}</div>
+                                <div className="flex-1 px-1.5 py-3 bg-blue-50 rounded-lg text-center min-w-[40px]">
+                                    <div className="text-xs text-blue-600 font-bold whitespace-nowrap">시설점검</div>
+                                    <div className="text-xl font-bold text-blue-700">{facilityChecks}</div>
                                 </div>
-                                <div className="flex-1 px-1.5 py-2 bg-emerald-50 rounded-lg text-center min-w-[40px]">
-                                    <div className="text-[9px] text-emerald-600 font-bold whitespace-nowrap">안전점검</div>
-                                    <div className="text-base font-bold text-emerald-700">{safetyChecks}</div>
+                                <div className="flex-1 px-1.5 py-3 bg-emerald-50 rounded-lg text-center min-w-[40px]">
+                                    <div className="text-xs text-emerald-600 font-bold whitespace-nowrap">안전점검</div>
+                                    <div className="text-xl font-bold text-emerald-700">{safetyChecks}</div>
                                 </div>
-                                <div className="flex-1 px-1.5 py-2 bg-purple-50 rounded-lg text-center min-w-[40px]">
-                                    <div className="text-[9px] text-purple-600 font-bold whitespace-nowrap">영업점검</div>
-                                    <div className="text-base font-bold text-purple-700">{salesChecks}</div>
+                                <div className="flex-1 px-1.5 py-3 bg-purple-50 rounded-lg text-center min-w-[40px]">
+                                    <div className="text-xs text-purple-600 font-bold whitespace-nowrap">영업점검</div>
+                                    <div className="text-xl font-bold text-purple-700">{salesChecks}</div>
                                 </div>
-                                <div className="flex-1 px-1.5 py-2 bg-red-50 rounded-lg text-center min-w-[40px]">
-                                    <div className="text-[9px] text-red-600 font-bold whitespace-nowrap">위험</div>
-                                    <div className="text-base font-bold text-red-700">{warningCount}</div>
+                                <div className="flex-1 px-1.5 py-3 bg-red-50 rounded-lg text-center min-w-[40px]">
+                                    <div className="text-xs text-red-600 font-bold whitespace-nowrap">위험</div>
+                                    <div className="text-xl font-bold text-red-700">{warningCount}</div>
                                 </div>
                             </div>
                         </div>
