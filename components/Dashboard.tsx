@@ -256,7 +256,7 @@ const Dashboard: React.FC<DashboardProps> = ({ logs, sites, onAddSite, onUpdateS
                     <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
                         <div className="flex flex-col md:flex-row justify-between items-start mb-4 gap-4 md:gap-0">
                             <div>
-                                <h2 className="text-base md:text-lg font-bold text-slate-900">{storeName || '전체'} 안전 현황</h2>
+                                <h2 className="text-sm md:text-lg font-bold text-slate-900">{storeName || '전체'} 안전 현황</h2>
                                 <div className="flex items-center gap-2 mt-1">
                                     <input
                                         type="date"
@@ -264,7 +264,7 @@ const Dashboard: React.FC<DashboardProps> = ({ logs, sites, onAddSite, onUpdateS
                                         onChange={(e) => setSelectedDate(e.target.value)}
                                         className="text-xs bg-slate-50 border border-slate-200 rounded px-2 py-1 text-slate-600 font-bold outline-none focus:ring-2 focus:ring-blue-500"
                                     />
-                                    <span className="text-slate-400 text-xs">기준 집계</span>
+                                    {/* <span className="text-slate-400 text-xs">기준 집계</span> */}
                                 </div>
                             </div>
                             <div className="flex gap-1 w-full md:w-auto justify-between md:justify-start">
