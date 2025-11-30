@@ -254,9 +254,9 @@ const Dashboard: React.FC<DashboardProps> = ({ logs, sites, onAddSite, onUpdateS
                 <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
                     {/* 요약 카드 */}
                     <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
-                        <div className="flex justify-between items-start mb-4">
+                        <div className="flex flex-col md:flex-row justify-between items-start mb-4 gap-4 md:gap-0">
                             <div>
-                                <h2 className="text-lg font-bold text-slate-900">{storeName || '전체'} 안전 현황</h2>{/* Updated color */}
+                                <h2 className="text-base md:text-lg font-bold text-slate-900">{storeName || '전체'} 안전 현황</h2>
                                 <div className="flex items-center gap-2 mt-1">
                                     <input
                                         type="date"
@@ -267,7 +267,7 @@ const Dashboard: React.FC<DashboardProps> = ({ logs, sites, onAddSite, onUpdateS
                                     <span className="text-slate-400 text-xs">기준 집계</span>
                                 </div>
                             </div>
-                            <div className="flex gap-1">
+                            <div className="flex gap-1 w-full md:w-auto justify-between md:justify-start">
                                 <div className="px-1.5 py-1.5 bg-blue-50 rounded-lg text-center min-w-[40px]">
                                     <div className="text-[9px] text-blue-600 font-bold whitespace-nowrap">시설점검</div>
                                     <div className="text-base font-bold text-blue-700">{facilityChecks}</div>
