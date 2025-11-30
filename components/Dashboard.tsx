@@ -57,6 +57,7 @@ const Dashboard: React.FC<DashboardProps> = ({ logs, sites, onAddSite, onUpdateS
     const warningCount = todaysLogs.filter(l => l.riskLevel === RiskLevel.WARNING).length;
     const facilityChecks = todaysLogs.filter(l => l.inspectorRole === Role.FACILITY).length;
     const safetyChecks = todaysLogs.filter(l => l.inspectorRole === Role.SAFETY).length;
+    const salesChecks = todaysLogs.filter(l => l.inspectorRole === Role.SALES).length;
 
     // Auto-generate summary when entering analysis tab if not present
     useEffect(() => {
@@ -275,6 +276,10 @@ const Dashboard: React.FC<DashboardProps> = ({ logs, sites, onAddSite, onUpdateS
                                     <div className="text-[10px] text-emerald-600 font-bold">안전점검</div>
                                     <div className="text-lg font-bold text-emerald-700">{safetyChecks}</div>
                                 </div>
+                                <div className="px-3 py-2 bg-purple-50 rounded-lg text-center min-w-[60px]">
+                                    <div className="text-[10px] text-purple-600 font-bold">영업점검</div>
+                                    <div className="text-lg font-bold text-purple-700">{salesChecks}</div>
+                                </div>
                                 <div className="px-3 py-2 bg-red-50 rounded-lg text-center min-w-[60px]">
                                     <div className="text-[10px] text-red-600 font-bold">위험</div>
                                     <div className="text-lg font-bold text-red-700">{warningCount}</div>
@@ -306,8 +311,9 @@ const Dashboard: React.FC<DashboardProps> = ({ logs, sites, onAddSite, onUpdateS
                                 const siteLogs = todaysLogs.filter(l => l.siteId === site.id);
                                 const facilityLog = siteLogs.find(l => l.inspectorRole === Role.FACILITY);
                                 const safetyLog = siteLogs.find(l => l.inspectorRole === Role.SAFETY);
+                                const salesLog = siteLogs.find(l => l.inspectorRole === Role.SALES);
 
-                                const workTypeDisplay = safetyLog?.workType || facilityLog?.workType || siteLogs[0]?.workType;
+                                const workTypeDisplay = safetyLog?.workType || facilityLog?.workType || salesLog?.workType || siteLogs[0]?.workType;
                                 const { status } = getStatus(site.endDate);
 
                                 return (
@@ -336,11 +342,12 @@ const Dashboard: React.FC<DashboardProps> = ({ logs, sites, onAddSite, onUpdateS
                                             <div className="flex gap-2 mt-2">
                                                 {renderCheckStatusChip(facilityLog, "시설")}
                                                 {renderCheckStatusChip(safetyLog, "안전")}
+                                                {renderCheckStatusChip(salesLog, "영업")}
                                             </div>
                                         </div>
 
                                         {/* Detailed Info if Checked */}
-                                        {(facilityLog || safetyLog) && (
+                                        {(facilityLog || safetyLog || salesLog) && (
                                             <div className="p-4 bg-slate-50/50">
                                                 <div className="space-y-3">
                                                     {workTypeDisplay && (
@@ -365,8 +372,8 @@ const Dashboard: React.FC<DashboardProps> = ({ logs, sites, onAddSite, onUpdateS
                                                     {/* Notes */}
                                                     {siteLogs.map(l => l.notes && (
                                                         <div key={l.id} className="text-xs bg-white p-2 rounded border border-slate-200 text-slate-600">
-                                                            <span className={`font-bold mr-1 ${l.inspectorRole === Role.SAFETY ? 'text-emerald-600' : 'text-blue-600'}`}>
-                                                                [{l.inspectorRole === Role.SAFETY ? '안전' : '시설'}]:
+                                                            <span className={`font-bold mr-1 ${l.inspectorRole === Role.SAFETY ? 'text-emerald-600' : l.inspectorRole === Role.SALES ? 'text-purple-600' : 'text-blue-600'}`}>
+                                                                [{l.inspectorRole === Role.SAFETY ? '안전' : l.inspectorRole === Role.SALES ? '영업' : '시설'}]:
                                                             </span>
                                                             {l.notes}
                                                         </div>

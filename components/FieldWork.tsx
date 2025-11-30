@@ -104,7 +104,7 @@ const FieldWork: React.FC<FieldWorkProps> = ({ siteId, sites, currentRole, onSub
             return;
         }
 
-        const inspectorName = currentRole === Role.FACILITY ? "시설 담당자" : "안전 관리자";
+        const inspectorName = currentRole === Role.FACILITY ? "시설 담당자" : currentRole === Role.SAFETY ? "안전 관리자" : "영업 관리자";
 
         const newLog: Omit<InspectionLog, 'id'> = {
             siteId: site.id,
@@ -127,7 +127,7 @@ const FieldWork: React.FC<FieldWorkProps> = ({ siteId, sites, currentRole, onSub
     return (
         <div className="px-4 py-6 animate-in slide-in-from-bottom-4 pb-24">
             {/* Header Info */}
-            <div className={`text-white p-5 rounded-2xl shadow-lg mb-6 ${currentRole === Role.SAFETY ? 'bg-emerald-800' : 'bg-slate-900'}`}>
+            <div className={`text-white p-5 rounded-2xl shadow-lg mb-6 ${currentRole === Role.SAFETY ? 'bg-emerald-800' : currentRole === Role.SALES ? 'bg-purple-900' : 'bg-slate-900'}`}>
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 text-slate-300 text-xs mb-1 uppercase tracking-wider">
                         <MapPin size={12} />
@@ -141,7 +141,7 @@ const FieldWork: React.FC<FieldWorkProps> = ({ siteId, sites, currentRole, onSub
                         공사 기간: {site.startDate} ~ {site.endDate}
                     </p>
                     <span className="text-xs font-bold border border-white/30 px-2 py-1 rounded-full">
-                        {currentRole === Role.FACILITY ? '시설팀 점검' : '안전팀 점검'}
+                        {currentRole === Role.FACILITY ? '시설관리 점검' : currentRole === Role.SAFETY ? '안전관리 점검' : '영업관리 점검'}
                     </span>
                 </div>
             </div>
@@ -265,10 +265,10 @@ const FieldWork: React.FC<FieldWorkProps> = ({ siteId, sites, currentRole, onSub
 
                 <button
                     onClick={handleSubmit}
-                    className={`w-full text-white py-4 rounded-xl font-bold text-lg shadow-lg active:scale-[0.98] transition-transform flex items-center justify-center gap-2 ${currentRole === Role.SAFETY ? 'bg-emerald-600 shadow-emerald-200' : 'bg-blue-600 shadow-blue-200'}`}
+                    className={`w-full text-white py-4 rounded-xl font-bold text-lg shadow-lg active:scale-[0.98] transition-transform flex items-center justify-center gap-2 ${currentRole === Role.SAFETY ? 'bg-emerald-600 shadow-emerald-200' : currentRole === Role.SALES ? 'bg-purple-600 shadow-purple-200' : 'bg-blue-600 shadow-blue-200'}`}
                 >
                     <ShieldCheck size={20} />
-                    {currentRole === Role.FACILITY ? '시설 점검 완료' : '안전 점검 완료'}
+                    {currentRole === Role.FACILITY ? '시설 점검 완료' : currentRole === Role.SAFETY ? '안전 점검 완료' : '영업 점검 완료'}
                 </button>
             </div>
 

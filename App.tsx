@@ -3,7 +3,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Role, Site, InspectionLog, RiskLevel, Store } from './types';
 import Dashboard from './components/Dashboard';
 import FieldWork from './components/FieldWork';
-import { LayoutDashboard, HardHat, Bell, Building2, ChevronRight, MapPin, ShieldCheck, LogOut, Lock, X, KeyRound, Store as StoreIcon, ArrowLeft, Search, ShoppingBag } from 'lucide-react';
+import { LayoutDashboard, HardHat, Bell, Building2, ChevronRight, MapPin, ShieldCheck, LogOut, Lock, X, KeyRound, Store as StoreIcon, ArrowLeft, Search, ShoppingBag, Briefcase } from 'lucide-react';
 import { subscribeToSites, subscribeToLogs, addSite, updateSite, deleteSite, addLog } from './services/firestore';
 
 // --- Mock Data (초기 데이터) ---
@@ -190,7 +190,7 @@ const App: React.FC = () => {
     return end >= today;
   });
 
-  const displaySites = (currentRole === Role.FACILITY || currentRole === Role.SAFETY) ? activeDateSites : storeSites;
+  const displaySites = (currentRole === Role.FACILITY || currentRole === Role.SAFETY || currentRole === Role.SALES) ? activeDateSites : storeSites;
 
 
   // --- RENDER: 0. Global Lock Screen ---
@@ -391,8 +391,8 @@ const App: React.FC = () => {
                 <HardHat size={32} />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-slate-800 group-hover:text-blue-700">시설팀 (현장 점검)</h3>
-                <p className="text-slate-400 text-sm">설비 점검 및 작업 일지 작성</p>
+                <h3 className="text-lg font-bold text-slate-800 group-hover:text-blue-700">시설관리 (현장점검)</h3>
+                <p className="text-slate-400 text-sm">설비 확인 및 작업 현장 점검</p>
               </div>
               <ChevronRight className="ml-auto text-slate-300" />
             </button>
@@ -405,8 +405,22 @@ const App: React.FC = () => {
                 <ShieldCheck size={32} />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-slate-800 group-hover:text-emerald-700">안전팀 (현장 점검)</h3>
+                <h3 className="text-lg font-bold text-slate-800 group-hover:text-emerald-700">안전관리 (현장점검)</h3>
                 <p className="text-slate-400 text-sm">위험 요소 확인 및 안전 수칙 점검</p>
+              </div>
+              <ChevronRight className="ml-auto text-slate-300" />
+            </button>
+
+            <button
+              onClick={() => setCurrentRole(Role.SALES)}
+              className="w-full bg-white p-6 rounded-2xl shadow-sm border-2 border-slate-100 hover:border-purple-500 hover:shadow-md transition-all group text-left flex items-center gap-4"
+            >
+              <div className="bg-purple-100 text-purple-600 p-4 rounded-xl group-hover:scale-110 transition-transform">
+                <Briefcase size={32} />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-slate-800 group-hover:text-purple-700">영업관리 (현장점검)</h3>
+                <p className="text-slate-400 text-sm">공사 현장 점검 및 특이사항 확인</p>
               </div>
               <ChevronRight className="ml-auto text-slate-300" />
             </button>
@@ -422,7 +436,7 @@ const App: React.FC = () => {
                 <LayoutDashboard size={32} />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-slate-800 group-hover:text-slate-900">지원팀 (통합 관제)</h3>
+                <h3 className="text-lg font-bold text-slate-800 group-hover:text-slate-900">지원팀 (통합관제)</h3>
                 <p className="text-slate-400 text-sm">{activeStore.name} 현장 관리</p>
               </div>
               <div className="ml-auto flex items-center gap-2">
@@ -487,15 +501,18 @@ const App: React.FC = () => {
         <div className="flex items-center gap-3">
           <div className={`p-2 rounded-lg text-white shadow-md transition-colors 
             ${currentRole === Role.SUPPORT ? 'bg-slate-800' :
-              currentRole === Role.SAFETY ? 'bg-emerald-600' : 'bg-blue-600'}`}>
+              currentRole === Role.SAFETY ? 'bg-emerald-600' :
+                currentRole === Role.SALES ? 'bg-purple-600' : 'bg-blue-600'}`}>
             {currentRole === Role.SUPPORT ? <Building2 size={20} /> :
-              currentRole === Role.SAFETY ? <ShieldCheck size={20} /> : <HardHat size={20} />}
+              currentRole === Role.SAFETY ? <ShieldCheck size={20} /> :
+                currentRole === Role.SALES ? <Briefcase size={20} /> : <HardHat size={20} />}
           </div>
           <div>
             <h1 className="font-bold text-slate-900 leading-tight text-lg">{activeStore.name}</h1>
             <p className="text-[11px] font-medium text-slate-500 uppercase tracking-wider flex items-center gap-1">
               {currentRole === Role.SUPPORT ? '통합 관제 센터' :
-                currentRole === Role.SAFETY ? '안전팀 현장점검' : '시설팀 현장점검'}
+                currentRole === Role.SAFETY ? '안전관리 현장점검' :
+                  currentRole === Role.SALES ? '영업관리 현장점검' : '시설관리 현장점검'}
             </p>
           </div>
         </div>
@@ -523,14 +540,15 @@ const App: React.FC = () => {
       {/* Main Content */}
       <main className="max-w-2xl mx-auto min-h-[calc(100vh-70px)]">
 
-        {/* --- 현장 점검 화면 (시설/안전) --- */}
-        {(currentRole === Role.FACILITY || currentRole === Role.SAFETY) && (
+        {/* --- 현장 점검 화면 (시설/안전/영업) --- */}
+        {(currentRole === Role.FACILITY || currentRole === Role.SAFETY || currentRole === Role.SALES) && (
           <>
             {!scannedSiteId ? (
               <div className="p-4 animate-in slide-in-from-bottom-4">
                 <div className="mb-6">
                   <h2 className="text-xl font-bold text-slate-800">
-                    {currentRole === Role.FACILITY ? '시설 점검 현장' : '안전 점검 현장'}
+                    {currentRole === Role.FACILITY ? '시설 점검 현장' :
+                      currentRole === Role.SAFETY ? '안전 점검 현장' : '영업 점검 현장'}
                   </h2>
                   <p className="text-sm text-slate-500">{activeStore.name} 진행 중 공사 목록입니다.</p>
                 </div>
@@ -550,7 +568,9 @@ const App: React.FC = () => {
                       >
                         <div className="flex items-center gap-4 text-left">
                           <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-bold text-lg transition-colors
-                                                ${currentRole === Role.SAFETY ? 'bg-emerald-50 text-emerald-600 group-hover:bg-emerald-100' : 'bg-slate-100 text-slate-600 group-hover:bg-blue-50 group-hover:text-blue-600'}
+                                                ${currentRole === Role.SAFETY ? 'bg-emerald-50 text-emerald-600 group-hover:bg-emerald-100' :
+                              currentRole === Role.SALES ? 'bg-purple-50 text-purple-600 group-hover:bg-purple-100' :
+                                'bg-slate-100 text-slate-600 group-hover:bg-blue-50 group-hover:text-blue-600'}
                                             `}>
                             {site.floor}
                           </div>

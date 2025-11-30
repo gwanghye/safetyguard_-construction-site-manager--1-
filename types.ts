@@ -6,8 +6,9 @@ export enum RiskLevel {
 }
 
 export enum Role {
-  FACILITY = 'FACILITY', // 시설팀 (설비 점검)
-  SAFETY = 'SAFETY',     // 안전팀 (안전 수칙 점검)
+  FACILITY = 'FACILITY', // 시설관리 (설비 점검)
+  SAFETY = 'SAFETY',     // 안전관리 (안전 수칙 점검)
+  SALES = 'SALES',       // 영업관리 (영업장 점검)
   SUPPORT = 'SUPPORT'    // 지원팀 (중앙 관제)
 }
 
@@ -49,8 +50,8 @@ export interface Site {
 export interface InspectionLog {
   id: string;
   siteId: string;
-  siteName: string; 
-  workType: string; 
+  siteName: string;
+  workType: string;
   timestamp: number;
   photos: string[];
   riskLevel: RiskLevel;
@@ -58,10 +59,10 @@ export interface InspectionLog {
   inspector: string;
   inspectorRole: Role; // 점검 주체 (시설팀 vs 안전팀)
   checklist: {
-    ppe: boolean;       
-    fireSafety: boolean; 
-    environment: boolean; 
-    electrical: boolean; 
+    ppe: boolean;
+    fireSafety: boolean;
+    environment: boolean;
+    electrical: boolean;
   };
 }
 
