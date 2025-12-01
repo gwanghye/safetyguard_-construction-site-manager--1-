@@ -1,5 +1,5 @@
 <div align="center">
-  <h2>🔒 AI 기반 공사·안전 점검 자동화 플랫폼</h2>
+  <h2> AI 기반 공사·안전 점검 자동화 플랫폼</h2>
   <sub>Construction Safety Inspection Web Dashboard</sub>
 </div>
 
