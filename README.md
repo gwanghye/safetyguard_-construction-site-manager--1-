@@ -1,6 +1,5 @@
 <div align="center">
-  <img width="1000" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-  <h2> AI 기반 공사·안전 점검 자동화 플랫폼</h2>
+  <h2>🔒 AI 기반 공사·안전 점검 자동화 플랫폼</h2>
   <sub>Construction Safety Inspection Web Dashboard</sub>
 </div>
 
@@ -25,8 +24,8 @@
 | 📍 점검 입력 폼(Web) | 공사 위치·사진·특이사항 입력 |
 | 🗂 중앙 관제 페이지 | 오늘 점검 데이터 실시간 조회 |
 | 🔥 AI 위험요약 | Gemini가 주요 리스크 자동 분석 |
-| 📷 사진 저장 | Firebase Storage 업로드 및 연동 |
-| 🔐 사내 활용 최적화 | 인증·권한 설정 확장 가능 |
+| 📷 Storage 업로드 | Firebase 기반 파일 저장 및 연동 |
+| 🔐 사내 운영 최적화 | 인증·권한 정책 적용 확장 가능 |
 
 ---
 
@@ -34,23 +33,18 @@
 
 | Layer | Technology | 역할 |
 |---|---|---|
-| Frontend | HTML · JavaScript(React 기반) | 입력/조회 UI, GitHub Pages 호스팅 |
-| Backend | Firebase Functions | API 처리 · AI 호출 · 로직 실행 |
-| Database | Firestore | 점검 기록 저장(일~누적 가능) |
-| File Storage | Firebase Storage | 점검 사진 저장/URL 관리 |
-| AI | Gemini API | 위험도 요약 및 작업 인사이트 생성 |
+| Frontend | HTML · JS(React) | GitHub Pages UI |
+| Backend | Firebase Functions | API・AI Summary |
+| DB | Firestore | 점검 기록 저장 |
+| Storage | Firebase Storage | 이미지 저장 |
+| AI | Gemini API | 위험요약·보고 자동화 |
 
 ---
 
 ## 🚀 Run Locally
 
-### 1) Install Dependencies
-
 ```bash
 npm install
+echo "GEMINI_API_KEY=YOUR_KEY" > .env.local
+npm run dev
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
