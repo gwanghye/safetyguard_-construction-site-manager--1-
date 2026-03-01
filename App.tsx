@@ -23,6 +23,7 @@ const MOCK_STORES: ExtendedStore[] = [
   { id: 'dept-8', name: '중동점', code: '1117', type: 'DEPARTMENT' },
   { id: 'dept-10', name: '킨텍스점', code: '1118', type: 'DEPARTMENT' },
   { id: 'dept-12', name: '울산점', code: '1119', type: 'DEPARTMENT' },
+  { id: 'dept-12', name: '울산동구점', code: '1119', type: 'DEPARTMENT' },
   { id: 'dept-11', name: '더현대 대구점', code: '1120', type: 'DEPARTMENT' },
   { id: 'dept-13', name: '충청점', code: '1121', type: 'DEPARTMENT' },
   { id: 'dept-9', name: '판교점', code: '1122', type: 'DEPARTMENT' },
