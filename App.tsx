@@ -3,7 +3,8 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Role, Site, InspectionLog, RiskLevel, Store } from './types';
 import Dashboard from './components/Dashboard';
 import FieldWork from './components/FieldWork';
-import { LayoutDashboard, HardHat, Bell, Building2, ChevronRight, MapPin, ShieldCheck, LogOut, Lock, X, KeyRound, Store as StoreIcon, ArrowLeft, Search, ShoppingBag, Briefcase } from 'lucide-react';
+import HQDashboard from './components/HQDashboard';
+import { LayoutDashboard, HardHat, Bell, Building2, ChevronRight, MapPin, ShieldCheck, LogOut, Lock, X, KeyRound, Store as StoreIcon, ArrowLeft, Search, ShoppingBag, Briefcase, Globe } from 'lucide-react';
 import { subscribeToSites, subscribeToLogs, addSite, updateSite, deleteSite, addLog } from './services/firestore';
 
 // --- Mock Data (초기 데이터) ---
@@ -64,6 +65,11 @@ const App: React.FC = () => {
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
 
+  // --- HQ Admin State ---
+  const [isHQAdmin, setIsHQAdmin] = useState(false);
+  const [showHQAuth, setShowHQAuth] = useState(false);
+  const [hqCodeInput, setHqCodeInput] = useState('');
+
   // --- Firebase Subscriptions ---
   useEffect(() => {
     if (activeStore) {
@@ -110,6 +116,18 @@ const App: React.FC = () => {
     } else {
       alert('지점 코드가 올바르지 않습니다.');
       setStoreCodeInput('');
+    }
+  };
+
+  const confirmHQEntry = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (hqCodeInput === '1597') {
+      setIsHQAdmin(true);
+      setShowHQAuth(false);
+      setHqCodeInput('');
+    } else {
+      alert('본사 통합 관리자 코드가 올바르지 않습니다.');
+      setHqCodeInput('');
     }
   };
 
@@ -234,7 +252,12 @@ const App: React.FC = () => {
     );
   }
 
-  // --- RENDER: 1. Store Selection Screen ---
+  // --- RENDER: 1. HQ Admin Dashboard ---
+  if (isHQAdmin) {
+    return <HQDashboard stores={MOCK_STORES} onExit={() => setIsHQAdmin(false)} />;
+  }
+
+  // --- RENDER: 2. Store Selection Screen ---
   if (!activeStore) {
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
@@ -245,12 +268,21 @@ const App: React.FC = () => {
               <h1 className="text-2xl font-bold text-slate-900">지점 선택</h1>
               <p className="text-slate-500 text-sm mt-1">관리하실 사업소를 선택해주세요.</p>
             </div>
-            <button
-              onClick={() => setIsAppUnlocked(false)}
-              className="p-2 text-slate-400 hover:bg-slate-100 rounded-full"
-            >
-              <Lock size={20} />
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={() => { setShowHQAuth(true); setHqCodeInput(''); }}
+                className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-full font-bold text-xs flex items-center gap-1 border border-indigo-100 bg-indigo-50/50 transition-colors"
+              >
+                <Globe size={16} /> 본사 통합
+              </button>
+              <button
+                onClick={() => setIsAppUnlocked(false)}
+                className="p-2 text-slate-400 hover:bg-slate-100 rounded-full transition-colors"
+                title="시스템 잠금"
+              >
+                <Lock size={20} />
+              </button>
+            </div>
           </div>
 
           {/* Search Bar */}
@@ -355,6 +387,47 @@ const App: React.FC = () => {
                 <button
                   type="submit"
                   className="w-full bg-slate-900 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-slate-800 transition-colors"
+                >
+                  입장하기
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* HQ Access Code Modal */}
+        {showHQAuth && (
+          <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 animate-in fade-in duration-200">
+            <div className="bg-white w-full max-w-xs rounded-2xl p-6 shadow-xl relative transform transition-all scale-100">
+              <button
+                onClick={() => setShowHQAuth(false)}
+                className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-1"
+              >
+                <X size={20} />
+              </button>
+
+              <div className="text-center mb-6">
+                <div className="w-12 h-12 mx-auto bg-indigo-600 text-white rounded-full flex items-center justify-center mb-3 shadow-lg shadow-indigo-200">
+                  <Globe size={20} />
+                </div>
+                <h3 className="text-lg font-bold text-slate-900">본사 통합 관리자</h3>
+                <p className="text-slate-500 text-xs mt-1">접근 코드를 입력하세요.</p>
+              </div>
+
+              <form onSubmit={confirmHQEntry} className="space-y-4">
+                <input
+                  type="password"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  value={hqCodeInput}
+                  onChange={(e) => setHqCodeInput(e.target.value)}
+                  placeholder="CODE"
+                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-center text-lg font-bold tracking-widest focus:ring-2 focus:ring-indigo-600 outline-none transition-all"
+                  autoFocus
+                />
+                <button
+                  type="submit"
+                  className="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-colors"
                 >
                   입장하기
                 </button>

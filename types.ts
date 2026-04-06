@@ -45,6 +45,7 @@ export interface Site {
   startDate: string;  // 공사 시작일
   endDate: string;    // 공사 종료일
   status: '대기' | '진행중' | '완료';
+  finalReport?: string; // AI가 작성한 최종 평가 요약
 }
 
 export interface InspectionLog {

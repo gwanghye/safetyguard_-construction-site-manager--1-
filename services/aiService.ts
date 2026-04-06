@@ -82,3 +82,38 @@ export const analyzeSafetyPhoto = async (base64Image: string): Promise<{ risk: s
     return { risk: "정상", description: "사진을 분석할 수 없습니다." };
   }
 }
+
+export const generateProjectFinalReport = async (site: { name: string, department: string }, logs: InspectionLog[]): Promise<string> => {
+  const ai = getAiClient();
+  if (!ai) return "AI 서비스를 사용할 수 없습니다. API 키를 확인하세요.";
+
+  if (logs.length === 0) return "점검 이력이 없어 평가를 진행할 수 없습니다.";
+
+  const logsText = logs.map(log =>
+    `[${new Date(log.timestamp).toLocaleDateString()}] 주체: ${log.inspectorRole}, 위험도: ${log.riskLevel}, 특이사항: ${log.notes || '없음'}, 체크리스트부적합: ${Object.entries(log.checklist).filter(([_, val]) => !val).map(([key]) => key).join(', ') || '없음'}`
+  ).join('\n');
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: `당신은 최고 안전 책임자입니다. 아래 공사 현장의 전체 점검 이력을 분석하여, 이 공사의 '안전관리 최종 평가'를 딱 1~2줄의 문장 하나로 작성해주세요.
+      
+      [공사 정보]
+      - 통사명: ${site.name}
+      - 부서: ${site.department}
+      
+      [점검 로그 데이터]
+      ${logsText}
+
+      [지침]
+      1. 마크다운 기호 사용 금지. 오직 텍스트만.
+      2. 이 공사의 전반적인 안전관리 수준 판별 (우수, 양호, 미흡 등)
+      3. 어떤 부분이 잘 되었고, 어떤 부분이 문제였는지 하나의 자연스러운 문장으로 요약.
+      예시: 전반적으로 양호했으나 후반에 작업자 보호구 미착용 이슈가 반복됨.`
+    });
+    return response.text || "평가 보고서를 생성하지 못했습니다.";
+  } catch (error) {
+    console.error("Error generating final report:", error);
+    return "오류로 인해 자동 평가를 수행하지 못했습니다.";
+  }
+};

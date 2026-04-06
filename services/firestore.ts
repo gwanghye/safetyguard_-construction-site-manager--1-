@@ -86,3 +86,28 @@ export const addLog = async (log: Omit<InspectionLog, 'id'>, storeId: string) =>
         timestamp: Date.now() // Ensure timestamp is number
     });
 };
+
+// --- Global Services for HQ Dashboard ---
+
+export const subscribeToAllSites = (callback: (sites: Site[]) => void) => {
+    const q = query(collection(db, 'sites'));
+    return onSnapshot(q, (snapshot) => {
+        const sites = snapshot.docs.map(doc => ({
+            ...doc.data(),
+            id: doc.id
+        })) as Site[];
+        callback(sites);
+    });
+};
+
+export const subscribeToAllLogs = (callback: (logs: InspectionLog[]) => void) => {
+    const q = query(collection(db, 'logs'));
+    return onSnapshot(q, (snapshot) => {
+        const logs = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        })) as InspectionLog[];
+        logs.sort((a, b) => b.timestamp - a.timestamp);
+        callback(logs);
+    });
+};
