@@ -2,8 +2,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Store, Site, InspectionLog, RiskLevel, Role } from '../types';
 import { subscribeToAllSites, subscribeToAllLogs, updateSite } from '../services/firestore';
 import { generateProjectFinalReport } from '../services/aiService';
-import { ArrowLeft, BrainCircuit, Activity, Navigation, Building2, HardHat, ShieldCheck, Briefcase, RefreshCw, BarChart3, AlertTriangle, CalendarClock } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, CartesianGrid } from 'recharts';
+import { ArrowLeft, BrainCircuit, Activity, Navigation, Building2, HardHat, ShieldCheck, Briefcase, RefreshCw, BarChart3, AlertTriangle, CalendarClock, Filter, Search as SearchIcon, X, CalendarDays, CheckCircle2 } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, CartesianGrid, Legend } from 'recharts';
 
 interface HQDashboardProps {
     stores: Store[];
@@ -26,7 +26,7 @@ const HQDashboard: React.FC<HQDashboardProps> = ({ stores, onExit }) => {
     const [logs, setLogs] = useState<InspectionLog[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
-    const [activeTab, setActiveTab] = useState<'overview' | 'reports'>('overview');
+    const [activeTab, setActiveTab] = useState<'overview' | 'reports' | 'storeDetail'>('overview');
 
     // Date Filters (Default to this month)
     const [startDate, setStartDate] = useState<string>(() => {
@@ -40,6 +40,13 @@ const HQDashboard: React.FC<HQDashboardProps> = ({ stores, onExit }) => {
     });
 
     const [generatingReportId, setGeneratingReportId] = useState<string | null>(null);
+
+    // --- Detail View State ---
+    const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
+
+    // --- Reports Filter State ---
+    const [reportStoreFilter, setReportStoreFilter] = useState<string>('ALL');
+    const [reportSearchQuery, setReportSearchQuery] = useState<string>('');
 
     // Fetch Global Data
     useEffect(() => {
@@ -90,8 +97,8 @@ const HQDashboard: React.FC<HQDashboardProps> = ({ stores, onExit }) => {
     const totalLogsCount = filteredLogs.length;
 
     // 3. Sites per store
-    const storeDataMap = new Map<string, { storeName: string, count: number }>();
-    stores.forEach(s => storeDataMap.set(s.id, { storeName: s.name, count: 0 }));
+    const storeDataMap = new Map<string, { storeId: string, storeName: string, count: number }>();
+    stores.forEach(s => storeDataMap.set(s.id, { storeId: s.id, storeName: s.name, count: 0 }));
     
     filteredSites.forEach(site => {
         if (storeDataMap.has(site.storeId)) {
@@ -104,13 +111,10 @@ const HQDashboard: React.FC<HQDashboardProps> = ({ stores, onExit }) => {
         .sort((a, b) => b.count - a.count); // sort descending
 
     // 4. Logs per store
-    const storeLogMap = new Map<string, { storeName: string, count: number }>();
-    stores.forEach(s => storeLogMap.set(s.id, { storeName: s.name, count: 0 }));
+    const storeLogMap = new Map<string, { storeId: string, storeName: string, count: number }>();
+    stores.forEach(s => storeLogMap.set(s.id, { storeId: s.id, storeName: s.name, count: 0 }));
 
     filteredLogs.forEach(log => {
-        // We need to map log -> site -> store.
-        // Wait, log doesn't have storeId, but we added storeId in firestore.ts recent update.
-        // However, older logs might not have it. Let's lookup via site.
         const site = sites.find(s => s.id === log.siteId);
         const storeId = (log as any).storeId || site?.storeId;
         
@@ -155,6 +159,15 @@ const HQDashboard: React.FC<HQDashboardProps> = ({ stores, onExit }) => {
         return end < todayDate || site.status === '완료';
     }).sort((a,b) => new Date(b.endDate).getTime() - new Date(a.endDate).getTime());
 
+    const filteredCompletedSites = useMemo(() => {
+        return completedSites.filter(site => {
+            const matchesStore = reportStoreFilter === 'ALL' || site.storeId === reportStoreFilter;
+            const matchesSearch = site.name.toLowerCase().includes(reportSearchQuery.toLowerCase()) || 
+                                  site.department.toLowerCase().includes(reportSearchQuery.toLowerCase());
+            return matchesStore && matchesSearch;
+        });
+    }, [completedSites, reportStoreFilter, reportSearchQuery]);
+
     const handleGenerateReport = async (site: Site) => {
         setGeneratingReportId(site.id);
         const siteLogs = logs.filter(l => l.siteId === site.id);
@@ -168,6 +181,56 @@ const HQDashboard: React.FC<HQDashboardProps> = ({ stores, onExit }) => {
         } finally {
             setGeneratingReportId(null);
         }
+    };
+
+    // --- Store Detail Calculations ---
+    const selectedStore = selectedStoreId ? stores.find(s => s.id === selectedStoreId) : null;
+    const storeSites = selectedStoreId ? filteredSites.filter(s => s.storeId === selectedStoreId) : [];
+    
+    // Store Logs
+    const storeLogs = selectedStoreId ? filteredLogs.filter(log => {
+        const site = sites.find(s => s.id === log.siteId);
+        const sId = (log as any).storeId || site?.storeId;
+        return sId === selectedStoreId;
+    }) : [];
+
+    // Daily Stacked Chart Data
+    const dailyChartData = useMemo(() => {
+        if (!selectedStoreId) return [];
+        const dailyMap = new Map<string, { date: string, SALES: number, SAFETY: number, FACILITY: number }>();
+        
+        // Initialize map with all dates in range
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        for(let d = start; d <= end; d.setDate(d.getDate() + 1)) {
+            const yyyymmdd = d.toISOString().split('T')[0];
+            const displayDate = `${d.getMonth()+1}/${d.getDate()}`; // short format M/D
+            dailyMap.set(yyyymmdd, { date: displayDate, SALES: 0, SAFETY: 0, FACILITY: 0 });
+        }
+
+        storeLogs.forEach(log => {
+            // log.timestamp is a number (ms since epoch). Convert to yyyy-mm-dd safely.
+            const d = new Date(log.timestamp);
+            const yyyymmdd = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            // Use ISO split as fallback just in case: new Date(log.timestamp).toISOString().split('T')[0] 
+            // Note: toISOString() uses UTC, so generating local strings like above is more accurate for daily filtering, 
+            // but the startDate/endDate uses UTC-based toISOString(). Let's align with that.
+            const isoDate = new Date(log.timestamp - (new Date().getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+            
+            if (dailyMap.has(isoDate)) {
+                const dayData = dailyMap.get(isoDate)!;
+                if (log.inspectorRole === 'SALES' || log.inspectorRole === 'SAFETY' || log.inspectorRole === 'FACILITY') {
+                     dayData[log.inspectorRole]++;
+                }
+            }
+        });
+
+        return Array.from(dailyMap.values());
+    }, [storeLogs, startDate, endDate, selectedStoreId]);
+
+    const goStoreDetail = (storeId: string) => {
+        setSelectedStoreId(storeId);
+        setActiveTab('storeDetail');
     };
 
     return (
@@ -194,20 +257,22 @@ const HQDashboard: React.FC<HQDashboardProps> = ({ stores, onExit }) => {
             <main className="max-w-4xl mx-auto p-4 md:p-6">
                 
                 {/* Tabs */}
-                <div className="flex bg-slate-200 p-1 rounded-xl mb-6 shadow-sm overflow-x-auto no-scrollbar">
-                    <button
-                        onClick={() => setActiveTab('overview')}
-                        className={`flex-1 min-w-[120px] py-3 text-sm font-bold rounded-lg flex items-center justify-center gap-2 transition-all ${activeTab === 'overview' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                    >
-                        <BarChart3 size={16} /> 데이터 분석
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('reports')}
-                        className={`flex-1 min-w-[120px] py-3 text-sm font-bold rounded-lg flex items-center justify-center gap-2 transition-all ${activeTab === 'reports' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                    >
-                        <BrainCircuit size={16} /> 완료 보고서
-                    </button>
-                </div>
+                {activeTab !== 'storeDetail' && (
+                    <div className="flex bg-slate-200 p-1 rounded-xl mb-6 shadow-sm overflow-x-auto no-scrollbar">
+                        <button
+                            onClick={() => setActiveTab('overview')}
+                            className={`flex-1 min-w-[120px] py-3 text-sm font-bold rounded-lg flex items-center justify-center gap-2 transition-all ${activeTab === 'overview' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                        >
+                            <BarChart3 size={16} /> 데이터 분석
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('reports')}
+                            className={`flex-1 min-w-[120px] py-3 text-sm font-bold rounded-lg flex items-center justify-center gap-2 transition-all ${activeTab === 'reports' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                        >
+                            <BrainCircuit size={16} /> 완료 보고서
+                        </button>
+                    </div>
+                )}
 
                 {/* Date Filter Configuration */}
                 {activeTab === 'overview' && (
@@ -274,18 +339,28 @@ const HQDashboard: React.FC<HQDashboardProps> = ({ stores, onExit }) => {
                                     
                                     {/* 점별 등록 공사수 */}
                                     <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
-                                        <h3 className="font-bold text-slate-700 mb-4 flex items-center gap-2">
-                                            <Building2 size={16} /> 지점별 공사 건수
-                                        </h3>
+                                        <div className="flex justify-between items-center mb-4">
+                                            <h3 className="font-bold text-slate-700 flex items-center gap-2">
+                                                <Building2 size={16} /> 지점별 공사 건수
+                                            </h3>
+                                            <span className="text-xs text-indigo-500 bg-indigo-50 px-2 py-1 rounded-md font-medium">클릭하여 상세 보기</span>
+                                        </div>
                                         <div className="h-64 w-full">
                                             {storeChartData.length > 0 ? (
                                                 <ResponsiveContainer>
-                                                    <BarChart data={storeChartData}>
+                                                    <BarChart data={storeChartData} margin={{ top: 10, right: 10, left: -20, bottom: 20 }}>
                                                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                                                        <XAxis dataKey="storeName" tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} interval={0} angle={-30} textAnchor="end" height={60} />
+                                                        <XAxis dataKey="storeName" tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} interval={0} angle={-30} textAnchor="end" height={40} />
                                                         <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} />
                                                         <Tooltip cursor={{ fill: '#f1f5f9' }} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
-                                                        <Bar dataKey="count" name="공사 건수" fill={COLORS.MOH} radius={[4, 4, 0, 0]} />
+                                                        <Bar 
+                                                            dataKey="count" 
+                                                            name="공사 건수" 
+                                                            fill={COLORS.MOH} 
+                                                            radius={[6, 6, 0, 0]} 
+                                                            onClick={(data) => goStoreDetail(data.storeId)}
+                                                            className="cursor-pointer hover:opacity-80 transition-opacity"
+                                                        />
                                                     </BarChart>
                                                 </ResponsiveContainer>
                                             ) : (
@@ -296,18 +371,28 @@ const HQDashboard: React.FC<HQDashboardProps> = ({ stores, onExit }) => {
 
                                     {/* 지점별 점검 수행 건수 */}
                                     <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
-                                        <h3 className="font-bold text-slate-700 mb-4 flex items-center gap-2">
-                                            <Navigation size={16} /> 지점별 통합 점검 횟수
-                                        </h3>
+                                        <div className="flex justify-between items-center mb-4">
+                                            <h3 className="font-bold text-slate-700 flex items-center gap-2">
+                                                <Navigation size={16} /> 지점별 점검 수행 건수
+                                            </h3>
+                                            <span className="text-xs text-indigo-500 bg-indigo-50 px-2 py-1 rounded-md font-medium">클릭하여 상세 보기</span>
+                                        </div>
                                         <div className="h-64 w-full">
                                             {storeLogChartData.length > 0 ? (
                                                 <ResponsiveContainer>
-                                                    <BarChart data={storeLogChartData}>
+                                                    <BarChart data={storeLogChartData} margin={{ top: 10, right: 10, left: -20, bottom: 20 }}>
                                                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                                                        <XAxis dataKey="storeName" tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} interval={0} angle={-30} textAnchor="end" height={60} />
+                                                        <XAxis dataKey="storeName" tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} interval={0} angle={-30} textAnchor="end" height={40} />
                                                         <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} />
                                                         <Tooltip cursor={{ fill: '#f1f5f9' }} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
-                                                        <Bar dataKey="count" name="점검 횟수" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
+                                                        <Bar 
+                                                            dataKey="count" 
+                                                            name="점검 횟수" 
+                                                            fill="#8b5cf6" 
+                                                            radius={[6, 6, 0, 0]}
+                                                            onClick={(data) => goStoreDetail(data.storeId)}
+                                                            className="cursor-pointer hover:opacity-80 transition-opacity"
+                                                        />
                                                     </BarChart>
                                                 </ResponsiveContainer>
                                             ) : (
@@ -323,7 +408,7 @@ const HQDashboard: React.FC<HQDashboardProps> = ({ stores, onExit }) => {
                                     
                                     {/* 점검 주체별 비율 */}
                                     <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col items-center">
-                                        <h3 className="font-bold text-slate-700 mb-2 whitespace-nowrap self-start">주체별 점검 비율</h3>
+                                        <h3 className="font-bold text-slate-700 mb-2 whitespace-nowrap self-start">전체 주체별 점검 비율</h3>
                                         <div className="h-56 w-full relative">
                                             {roleChartData.length > 0 ? (
                                                 <ResponsiveContainer>
@@ -353,7 +438,7 @@ const HQDashboard: React.FC<HQDashboardProps> = ({ stores, onExit }) => {
 
                                     {/* 위험도 분포 비율 */}
                                     <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col items-center">
-                                        <h3 className="font-bold text-slate-700 mb-2 whitespace-nowrap self-start">위험 수준 분포 분석</h3>
+                                        <h3 className="font-bold text-slate-700 mb-2 whitespace-nowrap self-start">전체 위험 수준 분포 분석</h3>
                                         <div className="h-56 w-full relative">
                                             {riskChartData.length > 0 ? (
                                                 <ResponsiveContainer>
@@ -389,19 +474,53 @@ const HQDashboard: React.FC<HQDashboardProps> = ({ stores, onExit }) => {
                         {activeTab === 'reports' && (
                             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
                                 <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 mb-6">
-                                    <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2 mb-2">
-                                        <BrainCircuit className="text-indigo-600" /> AI 안전관리 최종 분석
-                                    </h2>
-                                    <p className="text-sm text-slate-500">종료된 공사에 대한 전체 점검 이력을 분석하여 최종 평가 보고서를 수동으로 생성 및 보관합니다.</p>
+                                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                        <div>
+                                            <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2 mb-1">
+                                                <BrainCircuit className="text-indigo-600" /> AI 안전관리 최종 분석
+                                            </h2>
+                                            <p className="text-sm text-slate-500">종료된 공사에 대한 전체 점검 이력을 분석하여 최종 평가를 보관합니다.</p>
+                                        </div>
+                                        <div className="flex flex-col sm:flex-row gap-2">
+                                            <div className="relative">
+                                                <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                                                <select
+                                                    value={reportStoreFilter}
+                                                    onChange={e => setReportStoreFilter(e.target.value)}
+                                                    className="w-full sm:w-40 pl-9 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-none appearance-none cursor-pointer"
+                                                >
+                                                    <option value="ALL">전체 지점</option>
+                                                    {stores.map(store => (
+                                                        <option key={store.id} value={store.id}>{store.name}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div className="relative">
+                                                <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                                                <input
+                                                    type="text"
+                                                    placeholder="공사명 검색..."
+                                                    value={reportSearchQuery}
+                                                    onChange={e => setReportSearchQuery(e.target.value)}
+                                                    className="w-full sm:w-48 pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                                                />
+                                                {reportSearchQuery && (
+                                                    <button onClick={() => setReportSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                                                        <X size={14} />
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
 
                                 <div className="space-y-4">
-                                    {completedSites.length === 0 ? (
+                                    {filteredCompletedSites.length === 0 ? (
                                         <div className="text-center py-20 text-slate-400 border border-slate-200 border-dashed rounded-xl bg-white">
-                                            종료된 공사 현장이 없습니다.
+                                            검색 결과가 없거나 종료된 공사 현장이 없습니다.
                                         </div>
                                     ) : (
-                                        completedSites.map(site => {
+                                        filteredCompletedSites.map(site => {
                                             const storeName = stores.find(s => s.id === site.storeId)?.name || '알 수 없음';
                                             return (
                                                 <div key={site.id} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col md:flex-row">
@@ -445,6 +564,149 @@ const HQDashboard: React.FC<HQDashboardProps> = ({ stores, onExit }) => {
                                             )
                                         })
                                     )}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* --- TAB: STORE DETAIL (Full Screen Switch) --- */}
+                        {activeTab === 'storeDetail' && selectedStore && (
+                            <div className="animate-in fade-in slide-in-from-right-8 duration-300">
+                                {/* Detail Header */}
+                                <div className="mb-6 flex items-center gap-4">
+                                    <button
+                                        onClick={() => { setActiveTab('overview'); setSelectedStoreId(null); }}
+                                        className="p-2 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-indigo-600 rounded-xl shadow-sm transition-colors flex items-center gap-2 font-bold text-sm"
+                                    >
+                                        <ArrowLeft size={16} /> 대시보드 복귀
+                                    </button>
+                                    <div>
+                                        <h2 className="text-2xl font-black text-slate-800 flex items-center gap-2">
+                                            <Building2 className="text-indigo-600" /> {selectedStore.name} 특별 점검 현황
+                                        </h2>
+                                        <p className="text-slate-500 text-sm font-medium mt-1">
+                                            기간: {startDate} ~ {endDate}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {/* KPIs */}
+                                <div className="grid grid-cols-3 gap-4 mb-6">
+                                    <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
+                                        <div className="text-slate-500 text-xs font-bold mb-1">조회 기간 공사수</div>
+                                        <div className="text-2xl font-black text-slate-800">{storeSites.length} <span className="text-sm text-slate-400 font-medium">건</span></div>
+                                    </div>
+                                    <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
+                                        <div className="text-slate-500 text-xs font-bold mb-1">총 점검 수행 횟수</div>
+                                        <div className="text-2xl font-black text-indigo-600">{storeLogs.length} <span className="text-sm font-medium">번</span></div>
+                                    </div>
+                                    <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 border-l-4 border-l-red-500">
+                                        <div className="text-slate-500 text-xs font-bold mb-1">경고(위험) 적발 건수</div>
+                                        <div className="text-2xl font-black text-red-500">{storeLogs.filter(l => l.riskLevel === RiskLevel.WARNING).length} <span className="text-sm font-medium">건</span></div>
+                                    </div>
+                                </div>
+
+                                {/* Daily Timeline Chart (Stacked) */}
+                                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 mb-6">
+                                    <div className="flex items-center justify-between mb-4">
+                                        <h3 className="font-bold text-slate-800 text-lg flex items-center gap-2">
+                                            <CalendarDays size={20} className="text-indigo-500" /> 일별 주체별 점검 참여 현황
+                                        </h3>
+                                        <div className="flex items-center gap-4 text-xs font-bold">
+                                            <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-md bg-blue-500"></span> 시설</div>
+                                            <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-md bg-emerald-500"></span> 안전</div>
+                                            <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-md bg-purple-500"></span> 영업</div>
+                                        </div>
+                                    </div>
+                                    <div className="h-64 w-full">
+                                        <ResponsiveContainer>
+                                            <BarChart data={dailyChartData} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
+                                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                                <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
+                                                <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
+                                                <Tooltip cursor={{ fill: '#f8fafc' }} contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                                                <Bar dataKey="FACILITY" name="시설 점검" stackId="role" fill={COLORS.FACILITY} radius={[0, 0, 0, 0]} />
+                                                <Bar dataKey="SAFETY" name="안전 점검" stackId="role" fill={COLORS.SAFETY} radius={[0, 0, 0, 0]} />
+                                                <Bar dataKey="SALES" name="영업 점검" stackId="role" fill={COLORS.SALES} radius={[4, 4, 0, 0]} />
+                                            </BarChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                    <p className="text-xs text-slate-400 mt-2 text-center bg-slate-50 py-2 rounded-lg">
+                                        * 차트의 막대가 낮거나 없는 날은 점검이 수행되지 않았거나 적은 날입니다. 특정 역할의 색상이 빈 날짜를 모니터링 하세요.
+                                    </p>
+                                </div>
+
+                                {/* Sites Detailed Table */}
+                                <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                                    <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                                        <h3 className="font-bold text-slate-800 text-lg flex items-center gap-2">
+                                            <CheckCircle2 size={20} className="text-indigo-500" /> 공사 현장별 점검 횟수 집계표
+                                        </h3>
+                                    </div>
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-left border-collapse">
+                                            <thead>
+                                                <tr className="bg-slate-50 text-slate-500 text-xs uppercase font-bold border-b border-slate-200">
+                                                    <th className="p-4">유형/기간</th>
+                                                    <th className="p-4">공사명</th>
+                                                    <th className="p-4 text-center">총 점검</th>
+                                                    <th className="p-4 text-center">시설 점검</th>
+                                                    <th className="p-4 text-center">안전 점검</th>
+                                                    <th className="p-4 text-center text-purple-600 bg-purple-50/50 rounded-tl-xl rounded-tr-xl border-b-2 border-purple-200">영업 점검</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="text-sm font-medium text-slate-700 divide-y divide-slate-100">
+                                                {storeSites.length === 0 ? (
+                                                    <tr>
+                                                        <td colSpan={6} className="text-center py-10 text-slate-400">등록된 현장이 없습니다.</td>
+                                                    </tr>
+                                                ) : (
+                                                    storeSites.map(site => {
+                                                        const siteLogs = storeLogs.filter(l => l.siteId === site.id);
+                                                        const facilityCount = siteLogs.filter(l => l.inspectorRole === 'FACILITY').length;
+                                                        const safetyCount = siteLogs.filter(l => l.inspectorRole === 'SAFETY').length;
+                                                        const salesCount = siteLogs.filter(l => l.inspectorRole === 'SALES').length;
+                                                        const totalCount = siteLogs.length;
+
+                                                        return (
+                                                            <tr key={site.id} className="hover:bg-slate-50 transition-colors">
+                                                                <td className="p-4">
+                                                                    <div className="text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded inline-block mb-1">{site.department}</div>
+                                                                    <div className="text-[10px] text-slate-400">{site.startDate} ~ {site.endDate}</div>
+                                                                </td>
+                                                                <td className="p-4 font-bold text-slate-900">{site.name}</td>
+                                                                <td className="p-4 text-center">
+                                                                    <span className="font-black text-indigo-600 text-base">{totalCount}</span>
+                                                                </td>
+                                                                <td className="p-4 text-center">
+                                                                    {facilityCount > 0 ? (
+                                                                        <span className="text-blue-600 font-bold px-2 py-1 bg-blue-50 rounded-md">{facilityCount}회</span>
+                                                                    ) : (
+                                                                        <span className="text-slate-300">-</span>
+                                                                    )}
+                                                                </td>
+                                                                <td className="p-4 text-center">
+                                                                    {safetyCount > 0 ? (
+                                                                        <span className="text-emerald-600 font-bold px-2 py-1 bg-emerald-50 rounded-md">{safetyCount}회</span>
+                                                                    ) : (
+                                                                        <span className="text-slate-300">-</span>
+                                                                    )}
+                                                                </td>
+                                                                <td className="p-4 text-center bg-purple-50/20">
+                                                                    {salesCount > 0 ? (
+                                                                        <span className="text-purple-600 font-bold px-2 py-1 bg-purple-50 rounded-md border border-purple-100">{salesCount}회</span>
+                                                                    ) : (
+                                                                        <span className="text-red-500 font-bold px-3 py-1 bg-red-50 border border-red-200 rounded-md shadow-sm inline-flex items-center gap-1">
+                                                                            <AlertTriangle size={14} /> 0회 (누락)
+                                                                        </span>
+                                                                    )}
+                                                                </td>
+                                                            </tr>
+                                                        );
+                                                    })
+                                                )}
+                                            </tbody>
+                                        </table>
+                                    </div>
                                 </div>
                             </div>
                         )}
