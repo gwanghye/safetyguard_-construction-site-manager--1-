@@ -581,7 +581,7 @@ const HQDashboard: React.FC<HQDashboardProps> = ({ stores, onExit }) => {
                                     </button>
                                     <div>
                                         <h2 className="text-2xl font-black text-slate-800 flex items-center gap-2">
-                                            <Building2 className="text-indigo-600" /> {selectedStore.name} 특별 점검 현황
+                                            <Building2 className="text-indigo-600" /> {selectedStore.name} 안전 점검 현황
                                         </h2>
                                         <p className="text-slate-500 text-sm font-medium mt-1">
                                             기간: {startDate} ~ {endDate}
