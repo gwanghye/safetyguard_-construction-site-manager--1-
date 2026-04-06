@@ -38,13 +38,3 @@
 | DB | Firestore | 점검 기록 저장 |
 | Storage | Firebase Storage | 이미지 저장 |
 | AI | Gemini API | 위험요약·보고 자동화 |
-
----
-
-## 🚀 Run Locally
-
-```bash
-npm install
-echo "GEMINI_API_KEY=YOUR_KEY" > .env.local
-npm run dev
-
