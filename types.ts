@@ -46,6 +46,12 @@ export interface Site {
   endDate: string;    // 공사 종료일
   status: '대기' | '진행중' | '완료';
   finalReport?: string; // AI가 작성한 최종 평가 요약
+  managerPhones?: {
+    SALES?: string[];
+    SAFETY?: string[];
+    FACILITY?: string[];
+    SUPPORT?: string[];
+  };
 }
 
 export interface InspectionLog {
@@ -64,6 +70,13 @@ export interface InspectionLog {
     fireSafety: boolean;
     environment: boolean;
     electrical: boolean;
+  };
+  action?: {
+    status: 'PENDING' | 'RESOLVED';
+    resolvedAt?: number;
+    actionNotes?: string;
+    photoUrl?: string;
+    aiFeedback?: string;
   };
 }
 

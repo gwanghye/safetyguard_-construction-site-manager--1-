@@ -4,6 +4,7 @@ import { Role, Site, InspectionLog, RiskLevel, Store } from './types';
 import Dashboard from './components/Dashboard';
 import FieldWork from './components/FieldWork';
 import HQDashboard from './components/HQDashboard';
+import SiteDetail from './components/SiteDetail';
 import { LayoutDashboard, HardHat, Bell, Building2, ChevronRight, MapPin, ShieldCheck, LogOut, Lock, X, KeyRound, Store as StoreIcon, ArrowLeft, Search, ShoppingBag, Briefcase, Globe } from 'lucide-react';
 import { subscribeToSites, subscribeToLogs, addSite, updateSite, deleteSite, addLog } from './services/firestore';
 
@@ -60,6 +61,7 @@ const App: React.FC = () => {
   const [logs, setLogs] = useState<InspectionLog[]>([]);
 
   const [scannedSiteId, setScannedSiteId] = useState<string | null>(null);
+  const [isInspecting, setIsInspecting] = useState(false);
 
   // Support Team Password Modal State
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -601,7 +603,7 @@ const App: React.FC = () => {
             </div>
           )}
           <button
-            onClick={() => { setCurrentRole(null); setScannedSiteId(null); }}
+            onClick={() => { setCurrentRole(null); setScannedSiteId(null); setIsInspecting(false); }}
             className="px-3 py-1.5 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors flex items-center gap-1 font-bold text-sm"
             title="뒤로가기"
           >
@@ -637,7 +639,7 @@ const App: React.FC = () => {
                     displaySites.map(site => (
                       <button
                         key={site.id}
-                        onClick={() => setScannedSiteId(site.id)}
+                        onClick={() => { setScannedSiteId(site.id); setIsInspecting(false); }}
                         className="w-full bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between active:scale-[0.99] transition-all hover:border-blue-300 group"
                       >
                         <div className="flex items-center gap-4 text-left">
@@ -663,13 +665,21 @@ const App: React.FC = () => {
                   )}
                 </div>
               </div>
-            ) : (
+            ) : isInspecting ? (
               <FieldWork
                 siteId={scannedSiteId}
                 sites={storeSites}
                 currentRole={currentRole}
                 onSubmitInspection={handleAddLog}
-                onCancel={() => setScannedSiteId(null)}
+                onCancel={() => setIsInspecting(false)}
+              />
+            ) : (
+              <SiteDetail
+                site={storeSites.find(s => s.id === scannedSiteId)!}
+                logs={storeLogs}
+                currentRole={currentRole}
+                onBack={() => setScannedSiteId(null)}
+                onStartInspection={() => setIsInspecting(true)}
               />
             )}
           </>

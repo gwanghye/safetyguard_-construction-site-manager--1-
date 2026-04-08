@@ -18,7 +18,7 @@ const FieldWork: React.FC<FieldWorkProps> = ({ siteId, sites, currentRole, onSub
     const [notes, setNotes] = useState('');
     const [risk, setRisk] = useState<RiskLevel>(RiskLevel.NORMAL);
     const [checklist, setChecklist] = useState({
-        ppe: false, fireSafety: false, environment: false, electrical: false
+        ppe: true, fireSafety: true, environment: true, electrical: true
     });
     const [previewImage, setPreviewImage] = useState<string | null>(null);
     const [isAnalyzing, setIsAnalyzing] = useState(false);

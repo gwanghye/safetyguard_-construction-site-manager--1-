@@ -87,6 +87,12 @@ export const addLog = async (log: Omit<InspectionLog, 'id'>, storeId: string) =>
     });
 };
 
+export const updateLog = async (log: InspectionLog) => {
+    const logRef = doc(db, 'logs', log.id);
+    const { id, ...data } = log;
+    await updateDoc(logRef, data);
+};
+
 // --- Global Services for HQ Dashboard ---
 
 export const subscribeToAllSites = (callback: (sites: Site[]) => void) => {

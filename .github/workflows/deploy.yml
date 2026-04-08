@@ -35,6 +35,10 @@ jobs:
           VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
           VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
           VITE_GEMINI_API_KEY: ${{ secrets.VITE_GEMINI_API_KEY }}
+          VITE_ALIGO_API_KEY: ${{ secrets.VITE_ALIGO_API_KEY }}
+          VITE_ALIGO_USER_ID: ${{ secrets.VITE_ALIGO_USER_ID }}
+          VITE_ALIGO_SENDER_KEY: ${{ secrets.VITE_ALIGO_SENDER_KEY }}
+          VITE_COMPANY_PHONE: ${{ secrets.VITE_COMPANY_PHONE }}
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

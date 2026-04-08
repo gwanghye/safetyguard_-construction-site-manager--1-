@@ -117,3 +117,35 @@ export const generateProjectFinalReport = async (site: { name: string, departmen
     return "오류로 인해 자동 평가를 수행하지 못했습니다.";
   }
 };
+
+export const validateCorrectiveAction = async (originalNotes: string, actionNotes: string): Promise<{ isResolved: boolean, feedback: string }> => {
+  const ai = getAiClient();
+  if (!ai) return { isResolved: true, feedback: "AI 서비스 불가. 자체 통과 처리합니다." };
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: `당신은 건설 안전 점검관입니다. 작업자가 '경고' 처분을 받고 후속 조치 결과를 제출했습니다.
+      
+      [지적 사항]
+      ${originalNotes}
+      
+      [작업자 조치 내용]
+      ${actionNotes}
+
+      위 조치 내용을 보고, 지적된 안전 문제가 충분히 해결되었는지 판단하세요. 
+      첫 번째 줄에는 반드시 '승인' 또는 '반려'라는 단어만 출력하고, 
+      두 번째 줄부터는 왜 그렇게 판단했는지 피드백을 한 줄로 작성하세요. (마크다운 사용 불가)`
+    });
+    
+    const text = response.text || "";
+    const isResolved = text.includes('승인');
+    const feedbackLines = text.split('\n');
+    const feedback = feedbackLines.length > 1 ? feedbackLines.slice(1).join(' ').trim() : text.replace('승인', '').replace('반려', '').trim();
+    
+    return { isResolved, feedback };
+  } catch (error) {
+    console.error("Error validating action:", error);
+    return { isResolved: true, feedback: "서버 오류로 AI 검수를 생략합니다." };
+  }
+};
