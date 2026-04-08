@@ -348,7 +348,64 @@ const Dashboard: React.FC<DashboardProps> = ({ logs, sites, onAddSite, onUpdateS
                         <div className="space-y-4 pt-4 border-t border-slate-100">
                             <div className="flex justify-between items-center mb-2">
                                 <h4 className="font-bold text-sm text-slate-800 flex items-center gap-2">
-                                    <Check size={16} className="text-indigo-500"/> 오늘의 점검 퀘스트 [1일 1점검]
+                                    <Check size={16} className="text-indigo-500"/> 오늘의 점검율    const activeSitesToday = sortedSites.filter(site => getStatus(site.endDate).status !== 'expired');
+    const getRoleCompletion = (role: Role) => activeSitesToday.filter(site => todaysLogs.some(l => l.siteId === site.id && l.inspectorRole === role)).length;
+
+    return (
+        <div className="p-4 md:p-6 pb-24">
+            <div className="flex bg-slate-200 p-1 rounded-xl mb-6 overflow-x-auto no-scrollbar">
+                <button
+                    onClick={() => setActiveTab('monitoring')}
+                    className={`flex-1 min-w-[100px] py-2.5 text-xs md:text-sm font-bold rounded-lg flex items-center justify-center gap-2 transition-all ${activeTab === 'monitoring' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                    <LayoutGrid size={16} /> 통합 관제
+                </button>
+                <button
+                    onClick={() => setActiveTab('analysis')}
+                    className={`flex-1 min-w-[100px] py-2.5 text-xs md:text-sm font-bold rounded-lg flex items-center justify-center gap-2 transition-all ${activeTab === 'analysis' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                    <Activity size={16} /> 위험 분석
+                </button>
+                <button
+                    onClick={() => setActiveTab('management')}
+                    className={`flex-1 min-w-[100px] py-2.5 text-xs md:text-sm font-bold rounded-lg flex items-center justify-center gap-2 transition-all ${activeTab === 'management' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                    <ListChecks size={16} /> 현장 설정
+                </button>
+            </div>
+
+            {/* --- 1. 실시간 모니터링 탭 --- */}
+            {activeTab === 'monitoring' && (
+                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
+                    <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
+                        <div className="flex flex-col md:flex-row justify-between items-start mb-4 gap-4 md:gap-0">
+                            <div className="flex flex-row justify-between items-center w-full md:w-auto md:flex-col md:items-start">
+                                <h2 className="text-xl md:text-2xl font-bold text-slate-900">{storeName || '전체'} 일일 점검 현황</h2>
+                                <div className="flex items-center gap-2 md:mt-1">
+                                    <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="text-xs bg-slate-50 border border-slate-200 rounded px-2 py-1 text-slate-600 font-bold outline-none focus:ring-2 focus:ring-blue-500" />
+                                </div>
+                            </div>
+                            <div className="flex gap-2 w-full md:w-auto justify-between md:justify-start">
+                                <div className="flex-1 px-1.5 py-3 bg-blue-50 rounded-lg text-center min-w-[40px]">
+                                    <div className="text-xs text-blue-600 font-bold whitespace-nowrap">시설점검</div>
+                                    <div className="text-xl font-bold text-blue-700">{facilityChecks}</div>
+                                </div>
+                                <div className="flex-1 px-1.5 py-3 bg-emerald-50 rounded-lg text-center min-w-[40px]">
+                                    <div className="text-xs text-emerald-600 font-bold whitespace-nowrap">안전점검</div>
+                                    <div className="text-xl font-bold text-emerald-700">{safetyChecks}</div>
+                                </div>
+                                <div className="flex-1 px-1.5 py-3 bg-purple-50 rounded-lg text-center min-w-[40px]">
+                                    <div className="text-xs text-purple-600 font-bold whitespace-nowrap">영업점검</div>
+                                    <div className="text-xl font-bold text-purple-700">{salesChecks}</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Progress Bars */}
+                        <div className="space-y-4 pt-4 border-t border-slate-100">
+                            <div className="flex justify-between items-center mb-2">
+                                <h4 className="font-bold text-sm text-slate-800 flex items-center gap-2">
+                                    <Check size={16} className="text-indigo-500"/> 오늘의 점검율 [1일 1점검]
                                 </h4>
                                 <span className="text-xs text-indigo-600 font-bold bg-indigo-50 px-2 py-1 rounded">진행중 {activeSitesToday.length}건</span>
                             </div>
