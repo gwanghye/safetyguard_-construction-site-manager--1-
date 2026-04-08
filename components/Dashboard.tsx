@@ -323,7 +323,7 @@ const Dashboard: React.FC<DashboardProps> = ({ logs, sites, onAddSite, onUpdateS
                     <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
                         <div className="flex flex-col md:flex-row justify-between items-start mb-4 gap-4 md:gap-0">
                             <div className="flex flex-row justify-between items-center w-full md:w-auto md:flex-col md:items-start">
-                                <h2 className="text-xl md:text-2xl font-bold text-slate-900">{storeName || '전체'} 일일 현황</h2>
+                                <h2 className="text-xl md:text-2xl font-bold text-slate-900">{storeName || '전체'} 일일 점검 현황</h2>
                                 <div className="flex items-center gap-2 md:mt-1">
                                     <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="text-xs bg-slate-50 border border-slate-200 rounded px-2 py-1 text-slate-600 font-bold outline-none focus:ring-2 focus:ring-blue-500" />
                                 </div>
