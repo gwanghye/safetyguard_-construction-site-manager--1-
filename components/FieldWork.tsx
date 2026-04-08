@@ -104,7 +104,7 @@ const FieldWork: React.FC<FieldWorkProps> = ({ siteId, sites, currentRole, onSub
             return;
         }
 
-        const inspectorName = currentRole === Role.FACILITY ? "시설 담당자" : currentRole === Role.SAFETY ? "안전 관리자" : "영업 관리자";
+        const inspectorName = currentRole === Role.FACILITY ? "시설 담당자" : currentRole === Role.SAFETY ? "안전관리" : "영업 관리자";
 
         const newLog: Omit<InspectionLog, 'id'> = {
             siteId: site.id,

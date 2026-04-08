@@ -17,9 +17,9 @@ const SiteDetail: React.FC<SiteDetailProps> = ({ site, logs, currentRole, onBack
     const [actionNotes, setActionNotes] = useState("");
     const [isSubmittingAction, setIsSubmittingAction] = useState(false);
     
-    // 이 현장의 점검 로그 중 오늘치이거나, 조치가 필요한 Warning 로그들을 필터링
+    // 이 현장의 점검 로그 중 현재 역할(Role)이 지적한 미조치 Warning 로그들만 필터링
     const siteLogs = logs.filter(l => l.siteId === site.id);
-    const pendingWarnings = siteLogs.filter(l => l.riskLevel === RiskLevel.WARNING && (!l.action || l.action.status === 'PENDING'));
+    const pendingWarnings = siteLogs.filter(l => l.riskLevel === RiskLevel.WARNING && (!l.action || l.action.status === 'PENDING') && l.inspectorRole === currentRole);
 
     const submitCorrectiveAction = async () => {
         if (!actionNotes.trim() || !actionLogId) return;
