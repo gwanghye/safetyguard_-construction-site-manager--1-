@@ -554,7 +554,7 @@ const Dashboard: React.FC<DashboardProps> = ({ logs, sites, onAddSite, onUpdateS
                     <div className="bg-gradient-to-br from-indigo-600 to-purple-600 p-6 rounded-2xl text-white shadow-lg shadow-indigo-200">
                         <div className="flex items-center gap-3 mb-2">
                             <Smartphone size={24} className="text-indigo-200" />
-                            <h2 className="text-lg font-black tracking-wide">매직링크 자동 알림톡 설정</h2>
+                            <h2 className="text-lg font-black tracking-wide">점검 알림톡 설정</h2>
                         </div>
                         <p className="text-indigo-100 text-sm mb-4">영업/안전/시설 담당자에게 매일 오후 2시에 미점검 현장 전용 체크인 링크를 발송합니다. 공사 등록 시 입력한 연락처를 기반으로 발송됩니다.</p>
                         <div className="bg-white/10 p-3 rounded-xl border border-white/20 text-xs text-indigo-50 flex justify-between items-center">
