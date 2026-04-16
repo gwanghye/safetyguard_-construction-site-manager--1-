@@ -27,9 +27,24 @@ const SignaturePad = ({ onSave, onCancel }: { onSave: (data: string) => void, on
     const canvas = canvasRef.current;
     if (!canvas) return null;
     const rect = canvas.getBoundingClientRect();
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-    return { x: clientX - rect.left, y: clientY - rect.top };
+    
+    let clientX, clientY;
+    if (e.touches && e.touches.length > 0) {
+      clientX = e.touches[0].clientX;
+      clientY = e.touches[0].clientY;
+    } else if (e.nativeEvent && e.nativeEvent.touches && e.nativeEvent.touches.length > 0) {
+      clientX = e.nativeEvent.touches[0].clientX;
+      clientY = e.nativeEvent.touches[0].clientY;
+    } else if (e.clientX !== undefined) {
+      clientX = e.clientX;
+      clientY = e.clientY;
+    }
+    
+    if (clientX === undefined) return null;
+
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
   };
 
   const startDrawing = (e: any) => { 
@@ -419,9 +434,9 @@ export const RiskAssessment: React.FC<RiskAssessmentProps> = ({ site, currentRol
           </div>
         </div>
 
-        <div className="flex-1 p-2 md:p-4 overflow-y-auto w-full max-w-4xl mx-auto no-scrollbar">
+        <div className="flex-1 p-2 md:p-4 overflow-y-auto overflow-x-auto w-full max-w-4xl mx-auto no-scrollbar">
           
-          <div ref={pdfRef} className="bg-white p-4 md:p-8 rounded-xl shadow-sm border border-slate-200">
+          <div ref={pdfRef} className="min-w-[800px] bg-white p-4 md:p-8 rounded-xl shadow-sm border border-slate-200">
           {/* Header */}
           <div className="flex justify-between items-start mb-8">
             <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
@@ -640,7 +655,7 @@ export const RiskAssessment: React.FC<RiskAssessmentProps> = ({ site, currentRol
 
         {/* Appendix Section (Captured as Page 2) */}
         <div className="flex-none w-full max-w-4xl mx-auto mt-8">
-          <div ref={appendixRef} className="bg-white p-4 md:p-8 rounded-xl shadow-sm border border-slate-200">
+          <div ref={appendixRef} className="min-w-[800px] bg-white p-4 md:p-8 rounded-xl shadow-sm border border-slate-200">
           <div className="flex items-center justify-between mt-4 mb-4 border-b-2 border-slate-900 pb-2">
             <h2 className="text-xl font-black text-slate-900 flex items-center gap-2">
               <span className="w-4 h-4 bg-slate-900 outline outline-2 outline-offset-2 outline-slate-900 rounded-sm"></span> 
