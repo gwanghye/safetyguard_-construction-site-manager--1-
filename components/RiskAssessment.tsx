@@ -434,13 +434,13 @@ export const RiskAssessment: React.FC<RiskAssessmentProps> = ({ site, currentRol
           </div>
         </div>
 
-        <div className="flex-1 p-2 md:p-4 overflow-y-auto overflow-x-auto w-full max-w-4xl mx-auto no-scrollbar">
+        <div className="flex-1 p-2 md:p-4 overflow-y-auto w-full max-w-4xl mx-auto no-scrollbar">
           
-          <div ref={pdfRef} className="min-w-[800px] bg-white p-4 md:p-8 rounded-xl shadow-sm border border-slate-200">
+          <div ref={pdfRef} className="bg-white p-4 md:p-8 rounded-xl shadow-sm border border-slate-200">
           {/* Header */}
-          <div className="flex justify-between items-start mb-8">
-            <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-              <span className="w-4 h-4 bg-slate-900 rounded-sm"></span> 
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end mb-8 gap-4 lg:gap-0">
+            <h1 className="text-xl md:text-2xl font-bold text-slate-900 flex items-center gap-2 break-keep">
+              <span className="w-4 h-4 bg-slate-900 rounded-sm flex-none"></span> 
               신규매장 안전점검 체크리스트
             </h1>
             
@@ -655,7 +655,7 @@ export const RiskAssessment: React.FC<RiskAssessmentProps> = ({ site, currentRol
 
         {/* Appendix Section (Captured as Page 2) */}
         <div className="flex-none w-full max-w-4xl mx-auto mt-8">
-          <div ref={appendixRef} className="min-w-[800px] bg-white p-4 md:p-8 rounded-xl shadow-sm border border-slate-200">
+          <div ref={appendixRef} className="bg-white p-4 md:p-8 rounded-xl shadow-sm border border-slate-200">
           <div className="flex items-center justify-between mt-4 mb-4 border-b-2 border-slate-900 pb-2">
             <h2 className="text-xl font-black text-slate-900 flex items-center gap-2">
               <span className="w-4 h-4 bg-slate-900 outline outline-2 outline-offset-2 outline-slate-900 rounded-sm"></span> 
