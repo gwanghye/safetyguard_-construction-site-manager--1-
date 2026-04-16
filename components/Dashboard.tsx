@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { InspectionLog, RiskLevel, Site, Role } from '../types';
-import { RefreshCw, BrainCircuit, Plus, X, LayoutGrid, ListChecks, Hammer, Edit, CheckCircle2, AlertCircle, Clock, Trash2, Ban, CalendarClock, AlertTriangle, BarChart3, ShieldAlert, Activity, Check, Send, PhoneCall, Smartphone, UserPlus, Minus } from 'lucide-react';
+import { InspectionLog, RiskLevel, Site, Role, RiskAssessmentLog, RiskAssessmentStatus } from '../types';
+import { RefreshCw, BrainCircuit, Plus, X, LayoutGrid, ListChecks, Hammer, Edit, CheckCircle2, AlertCircle, Clock, Trash2, Ban, CalendarClock, AlertTriangle, BarChart3, ShieldAlert, Activity, Check, Send, PhoneCall, Smartphone, UserPlus, Minus, FileText, ChevronRight, FileCheck } from 'lucide-react';
+import { RiskAssessment } from './RiskAssessment';
 import { generateDailySafetySummary, validateCorrectiveAction } from '../services/aiService';
 import { updateLog } from '../services/firestore';
 import { sendAlimTalk } from '../services/notification';
@@ -8,14 +9,16 @@ import { sendAlimTalk } from '../services/notification';
 interface DashboardProps {
     logs: InspectionLog[];
     sites: Site[];
+    assessments: RiskAssessmentLog[];
     onAddSite?: (site: Site) => Promise<void> | void;
     onUpdateSite?: (site: Site) => Promise<void> | void;
     onDeleteSite?: (siteId: string) => Promise<void> | void;
     storeName?: string;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ logs, sites, onAddSite, onUpdateSite, onDeleteSite, storeName }) => {
-    const [activeTab, setActiveTab] = useState<'monitoring' | 'analysis' | 'management'>('monitoring');
+const Dashboard: React.FC<DashboardProps> = ({ logs, sites, assessments, onAddSite, onUpdateSite, onDeleteSite, storeName }) => {
+    const [activeTab, setActiveTab] = useState<'monitoring' | 'analysis' | 'management' | 'risk_assessment'>('monitoring');
+    const [selectedRiskSite, setSelectedRiskSite] = useState<Site | null>(null);
     const [aiSummary, setAiSummary] = useState<string>("");
     const [loadingAi, setLoadingAi] = useState(false);
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -31,7 +34,7 @@ const Dashboard: React.FC<DashboardProps> = ({ logs, sites, onAddSite, onUpdateS
     const [siteForm, setSiteForm] = useState<Partial<Site>>({
         floor: '1F',
         status: '대기',
-        managerPhones: { SALES: [''], SAFETY: [''], FACILITY: [''] }
+        managerPhones: { SALES: [''], SAFETY: [''], FACILITY: [''], SUPPORT: [''], SALES_TL: [''], SUPPORT_TL: [''], STORE_MANAGER: [''] }
     });
 
     const [selectedDate, setSelectedDate] = useState<string>(() => {
@@ -73,13 +76,41 @@ const Dashboard: React.FC<DashboardProps> = ({ logs, sites, onAddSite, onUpdateS
     };
 
     const openAddForm = () => {
-        setSiteForm({ floor: '1F', status: '대기', startDate: '', endDate: '', name: '', department: '', location: '', managerPhones: { SALES: [''], SAFETY: [''], FACILITY: [''] } });
+        setSiteForm({ 
+            floor: '1F', 
+            status: '대기', 
+            startDate: '', 
+            endDate: '', 
+            name: '', 
+            department: '', 
+            location: '', 
+            managerPhones: { 
+                SALES: [''], 
+                SAFETY: [''], 
+                FACILITY: [''], 
+                SUPPORT: [''],
+                SALES_TL: [''],
+                SUPPORT_TL: [''],
+                STORE_MANAGER: ['']
+            } 
+        });
         setIsEditing(false);
         setShowSiteForm(true);
     };
 
     const openEditForm = (site: Site) => {
-        setSiteForm({ ...site, managerPhones: site.managerPhones || { SALES: [''], SAFETY: [''], FACILITY: [''] } });
+        setSiteForm({ 
+            ...site, 
+            managerPhones: site.managerPhones || { 
+                SALES: [''], 
+                SAFETY: [''], 
+                FACILITY: [''], 
+                SUPPORT: [''],
+                SALES_TL: [''],
+                SUPPORT_TL: [''],
+                STORE_MANAGER: ['']
+            } 
+        });
         setIsEditing(true);
         setShowSiteForm(true);
     };
@@ -125,7 +156,10 @@ const Dashboard: React.FC<DashboardProps> = ({ logs, sites, onAddSite, onUpdateS
             const cleanPhones = {
                 SALES: siteForm.managerPhones?.SALES?.filter(p => p.trim() !== '') || [],
                 SAFETY: siteForm.managerPhones?.SAFETY?.filter(p => p.trim() !== '') || [],
-                FACILITY: siteForm.managerPhones?.FACILITY?.filter(p => p.trim() !== '') || []
+                FACILITY: siteForm.managerPhones?.FACILITY?.filter(p => p.trim() !== '') || [],
+                SALES_TL: siteForm.managerPhones?.SALES_TL?.filter(p => p.trim() !== '') || [],
+                SUPPORT_TL: siteForm.managerPhones?.SUPPORT_TL?.filter(p => p.trim() !== '') || [],
+                STORE_MANAGER: siteForm.managerPhones?.STORE_MANAGER?.filter(p => p.trim() !== '') || []
             };
 
             if (isEditing && onUpdateSite && siteForm.id) {
@@ -315,7 +349,79 @@ const Dashboard: React.FC<DashboardProps> = ({ logs, sites, onAddSite, onUpdateS
                 >
                     <ListChecks size={16} /> 현장 설정
                 </button>
+                <button
+                    onClick={() => setActiveTab('risk_assessment')}
+                    className={`flex-1 min-w-[100px] py-2.5 text-xs md:text-sm font-bold rounded-lg flex items-center justify-center gap-2 transition-all ${activeTab === 'risk_assessment' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                    <FileText size={16} /> 마무리 점검
+                </button>
             </div>
+
+            {activeTab === 'risk_assessment' && (
+                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
+
+                    {selectedRiskSite ? (
+                        <div className="fixed inset-0 z-[100] bg-white overflow-y-auto">
+                            <RiskAssessment 
+                                site={selectedRiskSite} 
+                                currentRole={Role.SUPPORT} 
+                                onBack={() => setSelectedRiskSite(null)} 
+                                storeName={storeName}
+                                existingAssessment={assessments.find(a => a.siteId === selectedRiskSite.id)}
+                            />
+                        </div>
+                    ) : (
+                        <div className="space-y-6">
+                            <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
+                                <h2 className="text-xl font-bold text-slate-900 mb-2 whitespace-pre-wrap">공사 마무리 점검 (수시위험성평가) 보관함</h2>
+                                <p className="text-sm text-slate-500">완료된 수시위험성평가 내역을 확인하고 결재 상태를 볼 수 있습니다.</p>
+                            </div>
+                            <div className="space-y-3">
+                                {assessments.filter(a => a.status === RiskAssessmentStatus.APPROVED).length === 0 ? (
+                                    <div className="text-center py-10 text-slate-400 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50">조회 가능한 완료된 보관함이 없습니다.</div>
+                                ) : (
+                                    assessments.filter(a => a.status === RiskAssessmentStatus.APPROVED).map(assessment => {
+                                        const site = sites.find(s => s.id === assessment.siteId);
+                                        return (
+                                            <button key={assessment.id} onClick={() => site && setSelectedRiskSite(site)} className="w-full bg-white p-4 rounded-xl border border-slate-200 flex justify-between items-center hover:border-blue-300 hover:bg-blue-50 transition-all group">
+                                                <div className="flex items-center gap-4">
+                                                    <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold bg-emerald-50 text-emerald-600 border border-emerald-100 shadow-inner">
+                                                        <CheckCircle2 size={18} />
+                                                    </div>
+                                                    <div className="text-left">
+                                                        <h4 className="font-bold text-slate-800 text-sm group-hover:text-blue-700">{site?.name || assessment.siteName}</h4>
+                                                        <div className="text-xs text-slate-500 mt-1">{assessment.department} | {assessment.authorName} | {new Date(assessment.timestamp).toLocaleDateString()}</div>
+                                                    </div>
+                                                </div>
+                                                <ChevronRight className="text-slate-300 group-hover:text-blue-500" />
+                                            </button>
+                                        )
+                                    })
+                                )}
+                                
+                                <div className="pt-8 border-t border-slate-200">
+                                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">현재 진행 중인 현장 (결재/조회용)</h4>
+                                    <div className="space-y-3">
+                                        {sites.filter(s => !assessments.some(a => a.siteId === s.id && a.status === RiskAssessmentStatus.APPROVED)).map(site => (
+                                            <button key={site.id} onClick={() => setSelectedRiskSite(site)} className="w-full bg-slate-50 p-4 rounded-xl border border-slate-200 flex justify-between items-center hover:border-indigo-300 hover:bg-white transition-all group">
+                                                <div className="flex items-center gap-4">
+                                                    <div className="w-10 h-10 rounded-lg flex items-center justify-center font-bold bg-white text-slate-400 border border-slate-200">{site.floor}</div>
+                                                    <div className="text-left">
+                                                        <h4 className="font-bold text-slate-600 text-sm">{site.name}</h4>
+                                                        <div className="text-xs text-slate-400 mt-1">{site.department} | {site.endDate} 종료</div>
+                                                    </div>
+                                                </div>
+                                                <div className="px-2 py-1 bg-white border border-slate-200 text-slate-400 rounded-lg text-[10px] font-bold">결재 대기/확인</div>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
+
 
             {/* --- 1. 실시간 모니터링 탭 --- */}
             {activeTab === 'monitoring' && (
@@ -323,7 +429,7 @@ const Dashboard: React.FC<DashboardProps> = ({ logs, sites, onAddSite, onUpdateS
                     <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
                         <div className="flex flex-col md:flex-row justify-between items-start mb-4 gap-4 md:gap-0">
                             <div className="flex flex-row justify-between items-center w-full md:w-auto md:flex-col md:items-start">
-                                <h2 className="text-xl md:text-2xl font-bold text-slate-900">{storeName || '전체'} 일일 점검 현황</h2>
+                                <h2 className="text-xl md:text-2xl font-bold text-slate-900">{storeName || '전체'} 일일 현황</h2>
                                 <div className="flex items-center gap-2 md:mt-1">
                                     <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="text-xs bg-slate-50 border border-slate-200 rounded px-2 py-1 text-slate-600 font-bold outline-none focus:ring-2 focus:ring-blue-500" />
                                 </div>
@@ -657,7 +763,7 @@ const Dashboard: React.FC<DashboardProps> = ({ logs, sites, onAddSite, onUpdateS
                             </div>
 
                             <div className="mt-6 pt-4 border-t border-slate-100">
-                                <h4 className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2"><PhoneCall size={16} className="text-indigo-500"/> 알림톡 수신 담당자 연락처</h4>
+                                <h4 className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2"><PhoneCall size={16} className="text-indigo-500"/> 현장 담당자 연락처 (점검 완료 알림)</h4>
                                 <div className="space-y-4">
                                     {(['SALES', 'SAFETY', 'FACILITY'] as const).map(role => (
                                         <div key={role} className="bg-slate-50 p-3 rounded-xl border border-slate-100">
@@ -688,6 +794,39 @@ const Dashboard: React.FC<DashboardProps> = ({ logs, sites, onAddSite, onUpdateS
                                 </div>
                             </div>
 
+                            <div className="mt-6 pt-4 border-t border-slate-100">
+                                <h4 className="text-sm font-bold text-indigo-600 mb-3 flex items-center gap-2"><FileCheck size={16} /> 수시위험성평가 결재권자 연락처 (결재 요청 알림)</h4>
+                                <div className="space-y-3">
+                                    {[
+                                        { key: 'SALES_TL', label: '영업팀장' },
+                                        { key: 'SUPPORT_TL', label: '지원팀장' },
+                                        { key: 'STORE_MANAGER', label: '점장' }
+                                    ].map(approver => (
+                                        <div key={approver.key} className="bg-indigo-50/50 p-3 rounded-xl border border-indigo-100">
+                                            <div className="flex justify-between items-center mb-2">
+                                                <span className="text-xs font-bold text-indigo-700">{approver.label}</span>
+                                                <button type="button" onClick={() => addPhoneField(approver.key as any)} className="text-[10px] bg-white border px-2 py-1 rounded shadow-sm flex items-center gap-1"><Plus size={10}/> 추가</button>
+                                            </div>
+                                            <div className="space-y-2">
+                                                {(siteForm.managerPhones?.[approver.key as any] || ['']).map((phone: string, idx: number) => (
+                                                    <div key={idx} className="flex gap-2">
+                                                        <input 
+                                                            type="text" 
+                                                            placeholder="010-0000-0000" 
+                                                            className="flex-1 p-2 text-sm border rounded-lg bg-white outline-none focus:border-indigo-300" 
+                                                            value={phone} 
+                                                            onChange={(e) => handlePhoneChange(approver.key as any, idx, e.target.value)} 
+                                                        />
+                                                        {(siteForm.managerPhones?.[approver.key as any]?.length || 0) > 1 && (
+                                                            <button type="button" onClick={() => removePhoneField(approver.key as any, idx)} className="p-2 text-red-400 hover:bg-red-50 rounded text-sm"><Minus size={16}/></button>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
                             <button type="submit" className="w-full bg-slate-900 text-white py-4 rounded-xl font-bold mt-4 shadow-lg active:scale-95 transition-transform">
                                 {isEditing ? '수정 임시 저장' : '현장 및 연락처 세팅 완료'}
                             </button>

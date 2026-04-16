@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Store, Site, InspectionLog, RiskLevel, Role } from '../types';
-import { subscribeToAllSites, subscribeToAllLogs, updateSite } from '../services/firestore';
+import { Store, Site, InspectionLog, RiskLevel, Role, RiskAssessmentLog, RiskAssessmentStatus } from '../types';
+import { subscribeToAllSites, subscribeToAllLogs, updateSite, subscribeToAllRiskAssessments } from '../services/firestore';
 import { generateProjectFinalReport } from '../services/aiService';
-import { ArrowLeft, BrainCircuit, Activity, Navigation, Building2, HardHat, ShieldCheck, Briefcase, RefreshCw, BarChart3, AlertTriangle, CalendarClock, Filter, Search as SearchIcon, X, CalendarDays, CheckCircle2 } from 'lucide-react';
+import { RiskAssessment } from './RiskAssessment';
+import { ArrowLeft, BrainCircuit, Activity, Navigation, Building2, HardHat, ShieldCheck, Briefcase, RefreshCw, BarChart3, AlertTriangle, CalendarClock, Filter, Search as SearchIcon, X, CalendarDays, CheckCircle2, Download, FileCheck2 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, CartesianGrid, Legend } from 'recharts';
 
 interface HQDashboardProps {
@@ -24,9 +25,10 @@ const COLORS = {
 const HQDashboard: React.FC<HQDashboardProps> = ({ stores, onExit }) => {
     const [sites, setSites] = useState<Site[]>([]);
     const [logs, setLogs] = useState<InspectionLog[]>([]);
+    const [assessments, setAssessments] = useState<RiskAssessmentLog[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
-    const [activeTab, setActiveTab] = useState<'overview' | 'reports' | 'storeDetail'>('overview');
+    const [activeTab, setActiveTab] = useState<'overview' | 'reports' | 'archive' | 'storeDetail'>('overview');
 
     // Date Filters (Default to this month)
     const [startDate, setStartDate] = useState<string>(() => {
@@ -43,10 +45,13 @@ const HQDashboard: React.FC<HQDashboardProps> = ({ stores, onExit }) => {
 
     // --- Detail View State ---
     const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
+    const [selectedArchiveAssessment, setSelectedArchiveAssessment] = useState<RiskAssessmentLog | null>(null);
 
     // --- Reports Filter State ---
     const [reportStoreFilter, setReportStoreFilter] = useState<string>('ALL');
     const [reportSearchQuery, setReportSearchQuery] = useState<string>('');
+    const [globalInsight, setGlobalInsight] = useState<string>("");
+    const [isAnalyzingInsight, setIsAnalyzingInsight] = useState(false);
 
     // Fetch Global Data
     useEffect(() => {
@@ -55,9 +60,11 @@ const HQDashboard: React.FC<HQDashboardProps> = ({ stores, onExit }) => {
             setLogs(data);
             setIsLoading(false);
         });
+        const unsubAssess = subscribeToAllRiskAssessments(setAssessments);
         return () => {
             unsubSites();
             unsubLogs();
+            unsubAssess();
         };
     }, []);
 
@@ -233,6 +240,48 @@ const HQDashboard: React.FC<HQDashboardProps> = ({ stores, onExit }) => {
         setActiveTab('storeDetail');
     };
 
+    const handleDownloadCSV = () => {
+        const headers = ["지점명", "공사명", "부서", "기안자", "상태", "작성일"];
+        const rows = assessments.map(a => {
+            const site = sites.find(s => s.id === a.siteId);
+            const storeName = stores.find(s => s.id === site?.storeId)?.name || '알수없음';
+            const statusLabel = a.status === RiskAssessmentStatus.APPROVED ? '최종승인' : '진행중';
+            return [
+                storeName,
+                a.siteName,
+                a.department,
+                a.authorName,
+                statusLabel,
+                new Date(a.timestamp).toLocaleDateString()
+            ].join(",");
+        });
+        const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + headers.join(",") + "\n" + rows.join("\n");
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", `전사_수시위험성평가_대장_${new Date().toLocaleDateString()}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    const generateInsightSummary = async () => {
+        if (isAnalyzingInsight) return;
+        setIsAnalyzingInsight(true);
+        try {
+            const { generateRiskAssessmentInsights } = await import('../services/aiService');
+            // Filter assessments based on current selected branch
+            const targetAssessments = assessments.filter(a => !selectedStoreId || sites.find(s => s.id === a.siteId)?.storeId === selectedStoreId);
+            const insight = await generateRiskAssessmentInsights(targetAssessments);
+            setGlobalInsight(insight);
+        } catch (e) {
+            console.error(e);
+            alert("인사이트 생성 중 오류가 발생했습니다.");
+        } finally {
+            setIsAnalyzingInsight(false);
+        }
+    };
+
     return (
         <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-24">
             {/* Header */}
@@ -270,6 +319,12 @@ const HQDashboard: React.FC<HQDashboardProps> = ({ stores, onExit }) => {
                             className={`flex-1 min-w-[120px] py-3 text-sm font-bold rounded-lg flex items-center justify-center gap-2 transition-all ${activeTab === 'reports' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                         >
                             <BrainCircuit size={16} /> 완료 보고서
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('archive')}
+                            className={`flex-1 min-w-[120px] py-3 text-sm font-bold rounded-lg flex items-center justify-center gap-2 transition-all ${activeTab === 'archive' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                        >
+                            <FileCheck2 size={16} /> 수시평가 보관함
                         </button>
                     </div>
                 )}
@@ -565,6 +620,152 @@ const HQDashboard: React.FC<HQDashboardProps> = ({ stores, onExit }) => {
                                         })
                                     )}
                                 </div>
+                            </div>
+                        )}
+
+                        {/* --- TAB: ARCHIVE --- */}
+                        {activeTab === 'archive' && (
+                            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 relative">
+                               {selectedArchiveAssessment ? (
+                                   <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden relative">
+                                        <RiskAssessment 
+                                          site={sites.find(s => s.id === selectedArchiveAssessment.siteId)!}
+                                          currentRole={Role.SUPPORT}
+                                          existingAssessment={selectedArchiveAssessment}
+                                          approverMode={undefined}
+                                          onBack={() => setSelectedArchiveAssessment(null)}
+                                          storeName={stores.find(s => s.id === sites.find(site => site.id === selectedArchiveAssessment.siteId)?.storeId)?.name}
+                                        />
+                                   </div>
+                               ) : (
+                                   <>
+                                       <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+                                            <div className="flex-1">
+                                                <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2 mb-1">
+                                                    <FileCheck2 className="text-indigo-600" /> 수시위험성평가 전사 보관함
+                                                </h2>
+                                                <p className="text-sm text-slate-500">지점별 공사 대비 수시 위험성평가 이행 현황을 모니터링합니다.</p>
+                                            </div>
+                                            
+                                             <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+                                                <div className="relative">
+                                                    <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                                                    <select
+                                                        value={selectedStoreId || 'ALL'}
+                                                        onChange={e => {
+                                                            setSelectedStoreId(e.target.value === 'ALL' ? null : e.target.value);
+                                                            setGlobalInsight(""); // Reset insight on filter change
+                                                        }}
+                                                        className="w-full sm:w-48 pl-9 pr-8 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-500 outline-none appearance-none cursor-pointer"
+                                                    >
+                                                        <option value="ALL">전체 지점 보기</option>
+                                                        {stores.map(store => (
+                                                            <option key={store.id} value={store.id}>{store.name}</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                                <button 
+                                                    onClick={handleDownloadCSV}
+                                                    className="flex items-center justify-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-bold rounded-xl transition-colors border border-emerald-200 shadow-sm whitespace-nowrap text-sm"
+                                                >
+                                                    <Download size={18} /> CSV 추출
+                                                </button>
+                                            </div>
+                                       </div>
+
+                                       {/* Global/Store Insights metrics section */}
+                                       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                                           <div className="bg-white p-5 rounded-2xl border border-indigo-100 shadow-sm flex flex-col items-center justify-center">
+                                               <span className="text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-wider">총 공사 건수</span>
+                                               <span className="text-2xl font-black text-slate-800">
+                                                   {selectedStoreId ? sites.filter(s => s.storeId === selectedStoreId).length : sites.length}건
+                                               </span>
+                                           </div>
+                                           <div className="bg-white p-5 rounded-2xl border border-indigo-100 shadow-sm flex flex-col items-center justify-center">
+                                               <span className="text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-wider">평가 완료 건수</span>
+                                               <span className="text-2xl font-black text-indigo-600">
+                                                   {assessments.filter(a => (!selectedStoreId || sites.find(s => s.id === a.siteId)?.storeId === selectedStoreId) && a.status === RiskAssessmentStatus.APPROVED).length}건
+                                               </span>
+                                           </div>
+                                           <div className="bg-white p-5 rounded-2xl border border-indigo-100 shadow-sm flex flex-col items-center justify-center">
+                                               <span className="text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-wider">이행률</span>
+                                               <span className="text-2xl font-black text-emerald-600">
+                                                   {Math.round((assessments.filter(a => (!selectedStoreId || sites.find(s => s.id === a.siteId)?.storeId === selectedStoreId) && a.status === RiskAssessmentStatus.APPROVED).length / 
+                                                   (selectedStoreId ? (sites.filter(s => s.storeId === selectedStoreId).length || 1) : (sites.length || 1))) * 100)}%
+                                               </span>
+                                           </div>
+                                           <div className="bg-indigo-600 p-5 rounded-2xl shadow-lg flex flex-col items-center justify-center cursor-pointer hover:bg-indigo-700 transition-colors" onClick={generateInsightSummary}>
+                                               <span className="text-[10px] font-bold text-indigo-100 mb-1 uppercase tracking-wider">인사이트 분석</span>
+                                               <div className="flex items-center gap-2 text-white font-black text-lg">
+                                                   {isAnalyzingInsight ? <RefreshCw size={20} className="animate-spin" /> : <BrainCircuit size={20} />}
+                                                   요약 생성
+                                               </div>
+                                           </div>
+                                       </div>
+
+                                       {globalInsight && (
+                                           <div className="bg-indigo-50 border border-indigo-200 p-5 rounded-2xl mb-6 animate-in slide-in-from-top-2 duration-300">
+                                               <h4 className="text-xs font-bold text-indigo-500 mb-2 flex items-center gap-2">
+                                                   <Activity size={14} /> 안전관리 현황 통찰(HQ Insight)
+                                               </h4>
+                                               <p className="text-sm font-bold text-slate-800 leading-relaxed italic">
+                                                   "{globalInsight}"
+                                               </p>
+                                           </div>
+                                       )}
+
+                                       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                                          <table className="w-full text-left border-collapse text-sm whitespace-nowrap">
+                                              <thead>
+                                                  <tr className="bg-slate-50 text-slate-600 font-bold border-b border-slate-200">
+                                                      <th className="p-4">지점/공사명</th>
+                                                      <th className="p-4">기안자/부서</th>
+                                                      <th className="p-4">평가 헤드라인 (특이사항)</th>
+                                                      <th className="p-4 text-center">상태</th>
+                                                  </tr>
+                                              </thead>
+                                              <tbody className="divide-y divide-slate-100">
+                                                  {assessments.filter(a => !selectedStoreId || sites.find(s => s.id === a.siteId)?.storeId === selectedStoreId).length === 0 ? (
+                                                      <tr><td colSpan={4} className="text-center py-10 text-slate-400 font-medium">조회 가능한 평가서가 없습니다.</td></tr>
+                                                  ) : assessments
+                                                    .filter(a => !selectedStoreId || sites.find(s => s.id === a.siteId)?.storeId === selectedStoreId)
+                                                    .sort((a,b) => b.timestamp - a.timestamp)
+                                                    .map(a => {
+                                                      const site = sites.find(s => s.id === a.siteId);
+                                                      const storeName = stores.find(s => s.id === site?.storeId)?.name || '알수없음';
+                                                      const isFinished = a.status === RiskAssessmentStatus.APPROVED;
+                                                      return (
+                                                          <tr 
+                                                              key={a.id} 
+                                                              className="hover:bg-indigo-50 transition-colors cursor-pointer group"
+                                                              onClick={() => setSelectedArchiveAssessment(a)}
+                                                          >
+                                                              <td className="p-4">
+                                                                  <div className="text-[10px] font-bold text-indigo-500 mb-0.5">{storeName}</div>
+                                                                  <div className="font-bold text-slate-900 group-hover:text-indigo-700">{a.siteName}</div>
+                                                              </td>
+                                                              <td className="p-4">
+                                                                  <div className="font-medium text-slate-700">{a.authorName}</div>
+                                                                  <div className="text-[11px] text-slate-400">{a.department}</div>
+                                                              </td>
+                                                              <td className="p-4">
+                                                                  <div className="max-w-[250px] truncate text-slate-600 italic">
+                                                                      {a.notes || '특이사항 없음'}
+                                                                  </div>
+                                                              </td>
+                                                              <td className="p-4 text-center">
+                                                                  <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-bold ${isFinished ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' : 'bg-blue-100 text-blue-700 border border-blue-200'}`}>
+                                                                      {isFinished ? '최종승인' : '진행중'}
+                                                                  </span>
+                                                              </td>
+                                                          </tr>
+                                                      );
+                                                  })}
+                                              </tbody>
+                                          </table>
+                                       </div>
+                                   </>
+                               )}
                             </div>
                         )}
 

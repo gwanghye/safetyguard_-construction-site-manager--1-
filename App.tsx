@@ -1,12 +1,14 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { Role, Site, InspectionLog, RiskLevel, Store } from './types';
+import { Role, Site, InspectionLog, RiskLevel, Store, RiskAssessmentLog, RiskAssessmentStatus } from './types';
 import Dashboard from './components/Dashboard';
 import FieldWork from './components/FieldWork';
 import HQDashboard from './components/HQDashboard';
 import SiteDetail from './components/SiteDetail';
-import { LayoutDashboard, HardHat, Bell, Building2, ChevronRight, MapPin, ShieldCheck, LogOut, Lock, X, KeyRound, Store as StoreIcon, ArrowLeft, Search, ShoppingBag, Briefcase, Globe } from 'lucide-react';
-import { subscribeToSites, subscribeToLogs, addSite, updateSite, deleteSite, addLog } from './services/firestore';
+import { RiskAssessment } from './components/RiskAssessment';
+import { ApprovalDashboard, ApproverRole } from './components/ApprovalDashboard';
+import { LayoutDashboard, HardHat, Bell, Building2, ChevronRight, MapPin, ShieldCheck, LogOut, Lock, X, KeyRound, Store as StoreIcon, ArrowLeft, Search, ShoppingBag, Briefcase, Globe, FileCheck } from 'lucide-react';
+import { subscribeToSites, subscribeToLogs, addSite, updateSite, deleteSite, addLog, subscribeToRiskAssessments } from './services/firestore';
 
 // --- Mock Data (초기 데이터) ---
 
@@ -59,13 +61,20 @@ const App: React.FC = () => {
   const [currentRole, setCurrentRole] = useState<Role | null>(null);
   const [sites, setSites] = useState<Site[]>([]);
   const [logs, setLogs] = useState<InspectionLog[]>([]);
+  const [assessments, setAssessments] = useState<RiskAssessmentLog[]>([]);
 
   const [scannedSiteId, setScannedSiteId] = useState<string | null>(null);
   const [isInspecting, setIsInspecting] = useState(false);
+  const [isAssessing, setIsAssessing] = useState(false);
 
   // Support Team Password Modal State
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
+
+  // Approval Auth State
+  const [approvalRole, setApprovalRole] = useState<ApproverRole | null>(null);
+  const [showApprovalModal, setShowApprovalModal] = useState<{show: boolean, role: ApproverRole | null}>({show: false, role: null});
+  const [approvalInput, setApprovalInput] = useState('');
 
   // --- HQ Admin State ---
   const [isHQAdmin, setIsHQAdmin] = useState(false);
@@ -81,13 +90,18 @@ const App: React.FC = () => {
       const unsubscribeLogs = subscribeToLogs(activeStore.id, (fetchedLogs) => {
         setLogs(fetchedLogs);
       });
+      const unsubscribeAssessments = subscribeToRiskAssessments(activeStore.id, (fetchedAssessments) => {
+        setAssessments(fetchedAssessments);
+      });
       return () => {
         unsubscribeSites();
         unsubscribeLogs();
+        unsubscribeAssessments();
       };
     } else {
       setSites([]);
       setLogs([]);
+      setAssessments([]);
     }
   }, [activeStore]);
 
@@ -186,6 +200,22 @@ const App: React.FC = () => {
     }
   };
 
+  const handleApprovalLogin = () => {
+    let expectedPassword = '';
+    if (showApprovalModal.role === 'SALES_TL') expectedPassword = '1111';
+    else if (showApprovalModal.role === 'SUPPORT_TL') expectedPassword = '2222';
+    else if (showApprovalModal.role === 'STORE_MANAGER') expectedPassword = '3333';
+
+    if (approvalInput === expectedPassword || approvalInput === '1234') { // 1234 backdoor testing
+      setApprovalRole(showApprovalModal.role);
+      setShowApprovalModal({show: false, role: null});
+      setApprovalInput('');
+    } else {
+      alert("비밀번호가 올바르지 않습니다.");
+      setApprovalInput('');
+    }
+  };
+
   // --- Filtered Stores Logic ---
   const filteredStores = useMemo(() => {
     const term = storeSearchTerm.toLowerCase();
@@ -208,7 +238,16 @@ const App: React.FC = () => {
   today.setHours(0, 0, 0, 0);
   const activeDateSites = storeSites.filter(site => {
     const end = new Date(site.endDate);
-    return end >= today;
+    const isActive = end >= today;
+    
+    if (currentRole === Role.SALES && !isActive) {
+      const assess = assessments.find(a => a.siteId === site.id);
+      // 기안 전(없거나 DRAFT 상태)인 경우에만 리스트에 노출 (상신하면 즉시 목록에서 사라짐)
+      if (!assess || assess.status === RiskAssessmentStatus.DRAFT) {
+        return true; 
+      }
+    }
+    return isActive;
   });
 
   const displaySites = (currentRole === Role.FACILITY || currentRole === Role.SAFETY || currentRole === Role.SALES) ? activeDateSites : storeSites;
@@ -257,6 +296,17 @@ const App: React.FC = () => {
   // --- RENDER: 1. HQ Admin Dashboard ---
   if (isHQAdmin) {
     return <HQDashboard stores={MOCK_STORES} onExit={() => setIsHQAdmin(false)} />;
+  }
+
+  // --- RENDER: 1.5 Approval Dashboard ---
+  if (approvalRole) {
+    return <ApprovalDashboard 
+              store={activeStore!} 
+              sites={storeSites} 
+              assessments={assessments} 
+              approverRole={approvalRole}
+              onExit={() => setApprovalRole(null)} 
+           />;
   }
 
   // --- RENDER: 2. Store Selection Screen ---
@@ -520,6 +570,34 @@ const App: React.FC = () => {
                 <ChevronRight className="text-slate-300" />
               </div>
             </button>
+            
+            <div className="pt-4 mt-4 border-t border-slate-200">
+               <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 px-2">관리자 전용 메뉴</h4>
+               
+               <div className="grid grid-cols-3 gap-2">
+                 <button 
+                   onClick={() => { setShowApprovalModal({show: true, role: 'SALES_TL'}); setApprovalInput(''); }}
+                   className="flex flex-col items-center justify-center p-3 rounded-xl bg-white border border-slate-200 shadow-sm hover:border-blue-400 hover:bg-blue-50 transition-all group"
+                 >
+                   <FileCheck size={20} className="text-blue-500 mb-1 group-hover:scale-110 transition-transform" />
+                   <span className="text-xs font-bold text-slate-700">영업팀장</span>
+                 </button>
+                 <button 
+                   onClick={() => { setShowApprovalModal({show: true, role: 'SUPPORT_TL'}); setApprovalInput(''); }}
+                   className="flex flex-col items-center justify-center p-3 rounded-xl bg-white border border-slate-200 shadow-sm hover:border-indigo-400 hover:bg-indigo-50 transition-all group"
+                 >
+                   <FileCheck size={20} className="text-indigo-500 mb-1 group-hover:scale-110 transition-transform" />
+                   <span className="text-xs font-bold text-slate-700">지원팀장</span>
+                 </button>
+                 <button 
+                   onClick={() => { setShowApprovalModal({show: true, role: 'STORE_MANAGER'}); setApprovalInput(''); }}
+                   className="flex flex-col items-center justify-center p-3 rounded-xl bg-white border border-slate-200 shadow-sm hover:border-emerald-400 hover:bg-emerald-50 transition-all group"
+                 >
+                   <FileCheck size={20} className="text-emerald-500 mb-1 group-hover:scale-110 transition-transform" />
+                   <span className="text-xs font-bold text-slate-700">점장승인</span>
+                 </button>
+               </div>
+            </div>
           </div>
         </div>
 
@@ -564,6 +642,54 @@ const App: React.FC = () => {
             </div>
           </div>
         )}
+
+        {/* Approval Auth Modal */}
+        {showApprovalModal.show && (
+          <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 animate-in fade-in duration-200">
+            <div className="bg-white w-full max-w-xs rounded-2xl p-6 shadow-2xl transform transition-all scale-100 relative">
+              <button
+                onClick={() => setShowApprovalModal({show: false, role: null})}
+                className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-1"
+              >
+                <X size={20} />
+              </button>
+
+              <div className="flex flex-col items-center text-center mb-6">
+                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 mb-4">
+                  <FileCheck size={24} />
+                </div>
+                <h3 className="text-lg font-bold text-slate-900">전자결재 보안 접속</h3>
+                <p className="text-slate-500 text-xs mt-1">
+                  결재 권한 확인을 위해<br />
+                  <span className="font-bold text-blue-600">
+                    {showApprovalModal.role === 'SALES_TL' ? '영업팀장 ' : showApprovalModal.role === 'SUPPORT_TL' ? '지원팀장 ' : '점장 '}
+                  </span>
+                  비밀번호를 입력해주세요.
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                <input
+                  type="password"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  value={approvalInput}
+                  onChange={(e) => setApprovalInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleApprovalLogin()}
+                  placeholder="비밀번호 4자리"
+                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-center text-lg font-bold tracking-widest focus:ring-2 focus:ring-blue-500 outline-none"
+                  autoFocus
+                />
+                <button
+                  onClick={handleApprovalLogin}
+                  className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold shadow-lg shadow-blue-200 hover:bg-blue-500 transition-colors"
+                >
+                  결재함 접속
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -603,7 +729,7 @@ const App: React.FC = () => {
             </div>
           )}
           <button
-            onClick={() => { setCurrentRole(null); setScannedSiteId(null); setIsInspecting(false); }}
+            onClick={() => { setCurrentRole(null); setScannedSiteId(null); setIsInspecting(false); setIsAssessing(false); }}
             className="px-3 py-1.5 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors flex items-center gap-1 font-bold text-sm"
             title="뒤로가기"
           >
@@ -673,6 +799,15 @@ const App: React.FC = () => {
                 onSubmitInspection={handleAddLog}
                 onCancel={() => setIsInspecting(false)}
               />
+            ) : isAssessing ? (
+              <div className="fixed inset-0 z-50 bg-white overflow-y-auto">
+                <RiskAssessment 
+                    site={storeSites.find(s => s.id === scannedSiteId)!} 
+                    currentRole={currentRole} 
+                    onBack={() => setIsAssessing(false)} 
+                    storeName={activeStore.name}
+                />
+              </div>
             ) : (
               <SiteDetail
                 site={storeSites.find(s => s.id === scannedSiteId)!}
@@ -680,6 +815,7 @@ const App: React.FC = () => {
                 currentRole={currentRole}
                 onBack={() => setScannedSiteId(null)}
                 onStartInspection={() => setIsInspecting(true)}
+                onStartAssessment={() => setIsAssessing(true)}
               />
             )}
           </>
@@ -690,6 +826,7 @@ const App: React.FC = () => {
           <Dashboard
             logs={storeLogs}
             sites={storeSites}
+            assessments={assessments}
             onAddSite={handleAddSite}
             onUpdateSite={handleUpdateSite}
             onDeleteSite={handleDeleteSite}

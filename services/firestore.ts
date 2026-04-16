@@ -11,7 +11,7 @@ import {
     serverTimestamp
 } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Site, InspectionLog } from '../types';
+import { Site, InspectionLog, RiskAssessmentLog } from '../types';
 
 // --- Sites Service ---
 
@@ -93,6 +93,41 @@ export const updateLog = async (log: InspectionLog) => {
     await updateDoc(logRef, data);
 };
 
+// --- Risk Assessment Service ---
+
+export const subscribeToRiskAssessments = (storeId: string, callback: (assessments: RiskAssessmentLog[]) => void) => {
+    if (!storeId) return () => { };
+
+    const q = query(
+        collection(db, 'riskAssessments'),
+        where('storeId', '==', storeId)
+    );
+
+    return onSnapshot(q, (snapshot) => {
+        const assessments = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        })) as RiskAssessmentLog[];
+
+        assessments.sort((a, b) => b.timestamp - a.timestamp);
+        callback(assessments);
+    });
+};
+
+export const addRiskAssessment = async (assessment: Omit<RiskAssessmentLog, 'id'>, storeId: string) => {
+    await addDoc(collection(db, 'riskAssessments'), {
+        ...assessment,
+        storeId,
+        timestamp: Date.now()
+    });
+};
+
+export const updateRiskAssessment = async (assessment: RiskAssessmentLog) => {
+    const assessRef = doc(db, 'riskAssessments', assessment.id);
+    const { id, ...data } = assessment;
+    await updateDoc(assessRef, data);
+};
+
 // --- Global Services for HQ Dashboard ---
 
 export const subscribeToAllSites = (callback: (sites: Site[]) => void) => {
@@ -115,5 +150,17 @@ export const subscribeToAllLogs = (callback: (logs: InspectionLog[]) => void) =>
         })) as InspectionLog[];
         logs.sort((a, b) => b.timestamp - a.timestamp);
         callback(logs);
+    });
+};
+
+export const subscribeToAllRiskAssessments = (callback: (assessments: RiskAssessmentLog[]) => void) => {
+    const q = query(collection(db, 'riskAssessments'));
+    return onSnapshot(q, (snapshot) => {
+        const assessments = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        })) as RiskAssessmentLog[];
+        assessments.sort((a, b) => b.timestamp - a.timestamp);
+        callback(assessments);
     });
 };

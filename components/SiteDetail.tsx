@@ -10,9 +10,10 @@ interface SiteDetailProps {
     currentRole: Role;
     onBack: () => void;
     onStartInspection: () => void;
+    onStartAssessment?: () => void;
 }
 
-const SiteDetail: React.FC<SiteDetailProps> = ({ site, logs, currentRole, onBack, onStartInspection }) => {
+const SiteDetail: React.FC<SiteDetailProps> = ({ site, logs, currentRole, onBack, onStartInspection, onStartAssessment }) => {
     const [actionLogId, setActionLogId] = useState<string | null>(null);
     const [actionNotes, setActionNotes] = useState("");
     const [isSubmittingAction, setIsSubmittingAction] = useState(false);
@@ -145,15 +146,25 @@ const SiteDetail: React.FC<SiteDetailProps> = ({ site, logs, currentRole, onBack
                 </div>
             </div>
 
-            {/* Bottom Floating Action Button */}
-            <div className="absolute bottom-6 left-0 right-0 px-4 md:px-6">
+            {/* Bottom Floating Action Buttons */}
+            <div className="absolute bottom-6 left-0 right-0 px-4 md:px-6 flex flex-col gap-3">
+                {currentRole === Role.SALES && onStartAssessment && (
+                    <button 
+                        onClick={onStartAssessment} 
+                        className="w-full text-indigo-700 bg-indigo-100 py-4 flex items-center justify-center gap-3 rounded-2xl font-bold text-lg shadow-lg hover:-translate-y-1 transition-all active:translate-y-0"
+                    >
+                        <FilePlus size={24} />
+                        공사 마무리 수시위험성평가 시작
+                    </button>
+                )}
+
                 <button 
                     onClick={onStartInspection} 
                     className={`w-full text-white py-4 flex items-center justify-center gap-3 rounded-2xl font-bold text-lg shadow-xl hover:-translate-y-1 transition-all active:translate-y-0
                     ${currentRole === Role.SAFETY ? 'bg-emerald-600 shadow-emerald-200' : currentRole === Role.SALES ? 'bg-purple-600 shadow-purple-200' : 'bg-blue-600 shadow-blue-200'}`}
                 >
                     <FilePlus size={24} />
-                    새로운 점검 시작하기
+                    새로운 점검 일지 작성
                 </button>
             </div>
         </div>

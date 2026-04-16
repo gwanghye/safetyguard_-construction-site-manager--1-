@@ -149,3 +149,42 @@ export const validateCorrectiveAction = async (originalNotes: string, actionNote
     return { isResolved: true, feedback: "서버 오류로 AI 검수를 생략합니다." };
   }
 };
+
+export const generateRiskAssessmentInsights = async (assessments: any[]): Promise<string> => {
+  const ai = getAiClient();
+  if (!ai) return "AI 서비스를 사용할 수 없습니다.";
+
+  if (assessments.length === 0) return "분석할 평가 데이터가 없습니다.";
+
+  // Sort by date and take the most recent ones for context
+  const targetData = assessments.sort((a, b) => b.timestamp - a.timestamp).slice(0, 8);
+
+  const dataText = targetData.map(a => 
+    `[${a.siteName}] 작성자: ${a.authorName}, 특이사항: ${a.notes || '없음'}, 상태: ${a.status === 'APPROVED' ? '승인' : '진행중'}`
+  ).join('\n');
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.0-flash',
+      contents: [{
+        role: 'user',
+        parts: [{ 
+          text: `당신은 안전 관리 본부의 전략적 안전 분석가입니다. 아래의 수시위험성평가 데이터들을 보고, 전사적 또는 지점별 안전 이행 현황에 대한 '핵심 인사이트 요약'을 아주 짧고 강하게 한 문장(마크다운 없이 텍스트만)으로 작성해 주세요.
+      
+      [데이터 요약]
+      ${dataText}
+
+      [지침]
+      1. 마크다운 기호(**, *) 사용 절대 금지.
+      2. 전반적인 안전 관리 트렌드를 파악하여 경영진이 즉각 이해할 수 있도록 문장형으로 작성.
+      3. 긍정적인 부분과 개선이 필요한 핵심 부분을 동시에 언급.
+      예시: 전반적인 이행률은 양호하나 특정 지점의 고소 작업 안전 수칙 준수가 미흡하여 전사적인 교육 강화가 필요합니다.`
+        }]
+      }]
+    });
+    return response.response.text() || "분석 결과를 도출하지 못했습니다.";
+  } catch (e) {
+    console.error(e);
+    return "데이터 분석 중 오류가 발생했습니다.";
+  }
+};

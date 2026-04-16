@@ -9,7 +9,64 @@ export enum Role {
   FACILITY = 'FACILITY', // 시설관리 (설비 점검)
   SAFETY = 'SAFETY',     // 안전관리 (안전 수칙 점검)
   SALES = 'SALES',       // 영업관리 (영업장 점검)
-  SUPPORT = 'SUPPORT'    // 지원팀 (중앙 관제)
+  SUPPORT = 'SUPPORT',   // 지원팀 (중앙 관제)
+  STORE_MANAGER = 'STORE_MANAGER' // 점장
+}
+
+export enum RiskAssessmentStatus {
+  DRAFT = 'DRAFT',
+  PENDING_SALES_TL = 'PENDING_SALES_TL',
+  PENDING_SUPPORT_TL = 'PENDING_SUPPORT_TL',
+  PENDING_STORE_MGR = 'PENDING_STORE_MGR',
+  APPROVED = 'APPROVED'
+}
+
+export interface RiskAssessmentLog {
+  id: string;
+  siteId: string;
+  siteName: string;
+  department: string;
+  constructionPeriod: string;
+  authorName: string;
+  timestamp: number;
+  status: RiskAssessmentStatus;
+  checklist: {
+    ceiling: '양호' | '보완' | '해당없음' | '';
+    floor: '양호' | '보완' | '해당없음' | '';
+    wall: '양호' | '보완' | '해당없음' | '';
+    equipment: '양호' | '보완' | '해당없음' | '';
+    fireSafety: '양호' | '보완' | '해당없음' | '';
+    electrical: '양호' | '보완' | '해당없음' | '';
+    others: '양호' | '보완' | '해당없음' | '';
+  };
+  notes: string;
+  photos: {
+    before: string;
+    after: string;
+    riskFactor: string;
+    actionTaken: string;
+  }[];
+  authorSignature?: string; // 영업담당자 서명
+  approvers: {
+    salesTeamLeader?: {
+      name: string;
+      date: number;
+      signature?: string;
+      opinion?: string;
+    };
+    supportTeamLeader?: {
+      name: string;
+      date: number;
+      signature?: string;
+      opinion?: string;
+    };
+    storeManager?: {
+      name: string;
+      date: number;
+      signature?: string;
+      opinion?: string;
+    };
+  };
 }
 
 export interface Store {
@@ -17,6 +74,11 @@ export interface Store {
   name: string;
   code: string; // 지점 접속 코드
   type?: 'DEPARTMENT' | 'OUTLET';
+  managerPhones?: {
+    salesTeamLeader?: string;
+    supportTeamLeader?: string;
+    storeManager?: string;
+  };
 }
 
 export interface Project {
@@ -51,6 +113,9 @@ export interface Site {
     SAFETY?: string[];
     FACILITY?: string[];
     SUPPORT?: string[];
+    SALES_TL?: string[];
+    SUPPORT_TL?: string[];
+    STORE_MANAGER?: string[];
   };
 }
 
