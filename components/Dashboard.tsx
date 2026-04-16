@@ -328,6 +328,11 @@ const Dashboard: React.FC<DashboardProps> = ({ logs, sites, assessments, onAddSi
     const activeSitesToday = sortedSites.filter(site => getStatus(site.endDate).status !== 'expired');
     const getRoleCompletion = (role: Role) => activeSitesToday.filter(site => todaysLogs.some(l => l.siteId === site.id && l.inspectorRole === role)).length;
 
+    const isRiskAssessmentExempt = (site: Site) => new Date(site.endDate) < new Date('2026-04-20');
+    const approvedRiskAssessments = assessments.filter(a => a.status === RiskAssessmentStatus.APPROVED);
+    const exemptSites = sites.filter(s => isRiskAssessmentExempt(s) && !approvedRiskAssessments.some(a => a.siteId === s.id));
+    const pendingRiskSites = sites.filter(s => !isRiskAssessmentExempt(s) && !assessments.some(a => a.siteId === s.id && a.status === RiskAssessmentStatus.APPROVED));
+
     return (
         <div className="p-4 md:p-6 pb-24">
             <div className="flex bg-slate-200 p-1 rounded-xl mb-6 overflow-x-auto no-scrollbar">
@@ -367,7 +372,8 @@ const Dashboard: React.FC<DashboardProps> = ({ logs, sites, assessments, onAddSi
                                 currentRole={Role.SUPPORT} 
                                 onBack={() => setSelectedRiskSite(null)} 
                                 storeName={storeName}
-                                existingAssessment={assessments.find(a => a.siteId === selectedRiskSite.id)}
+                                existingAssessment={assessments.find(a => a.siteId === selectedRiskSite.id) || (isRiskAssessmentExempt(selectedRiskSite) ? { 
+                                     id: 'exempt', siteId: selectedRiskSite.id, siteName: selectedRiskSite.name, authorName: '자동 완료', department: selectedRiskSite.department || '미상', constructionPeriod: `${selectedRiskSite.startDate} ~ ${selectedRiskSite.endDate}`, timestamp: Date.now(), status: RiskAssessmentStatus.APPROVED, checklist: { ceiling: '양호', floor: '양호', wall: '양호', equipment: '양호', fireSafety: '양호', electrical: '양호', others: '양호' }, notes: '26.04.20 이전 시행 현장으로 인한 수시위험성평가 면제 (자동 완료 처리됨)' } as any : undefined)}
                             />
                         </div>
                     ) : (
@@ -377,43 +383,63 @@ const Dashboard: React.FC<DashboardProps> = ({ logs, sites, assessments, onAddSi
                                 <p className="text-sm text-slate-500">완료된 수시위험성평가 내역을 확인하고 결재 상태를 볼 수 있습니다.</p>
                             </div>
                             <div className="space-y-3">
-                                {assessments.filter(a => a.status === RiskAssessmentStatus.APPROVED).length === 0 ? (
+                                {approvedRiskAssessments.length === 0 && exemptSites.length === 0 ? (
                                     <div className="text-center py-10 text-slate-400 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50">조회 가능한 완료된 보관함이 없습니다.</div>
                                 ) : (
-                                    assessments.filter(a => a.status === RiskAssessmentStatus.APPROVED).map(assessment => {
-                                        const site = sites.find(s => s.id === assessment.siteId);
-                                        return (
-                                            <button key={assessment.id} onClick={() => site && setSelectedRiskSite(site)} className="w-full bg-white p-4 rounded-xl border border-slate-200 flex justify-between items-center hover:border-blue-300 hover:bg-blue-50 transition-all group">
+                                    <>
+                                        {approvedRiskAssessments.map(assessment => {
+                                            const site = sites.find(s => s.id === assessment.siteId);
+                                            return (
+                                                <button key={assessment.id} onClick={() => site && setSelectedRiskSite(site)} className="w-full bg-white p-4 rounded-xl border border-slate-200 flex justify-between items-center hover:border-blue-300 hover:bg-blue-50 transition-all group">
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold bg-emerald-50 text-emerald-600 border border-emerald-100 shadow-inner">
+                                                            <CheckCircle2 size={18} />
+                                                        </div>
+                                                        <div className="text-left">
+                                                            <h4 className="font-bold text-slate-800 text-sm group-hover:text-blue-700">{site?.name || assessment.siteName}</h4>
+                                                            <div className="text-xs text-slate-500 mt-1">{assessment.department} | {assessment.authorName} | {new Date(assessment.timestamp).toLocaleDateString()}</div>
+                                                        </div>
+                                                    </div>
+                                                    <ChevronRight className="text-slate-300 group-hover:text-blue-500" />
+                                                </button>
+                                            )
+                                        })}
+                                        {exemptSites.map(site => (
+                                            <button key={site.id} onClick={() => setSelectedRiskSite(site)} className="w-full bg-slate-50 p-4 rounded-xl border border-slate-200 flex justify-between items-center hover:border-emerald-300 hover:bg-emerald-50 transition-all group opacity-80">
                                                 <div className="flex items-center gap-4">
-                                                    <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold bg-emerald-50 text-emerald-600 border border-emerald-100 shadow-inner">
+                                                    <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold bg-slate-200 text-slate-500 border border-slate-300 shadow-inner">
                                                         <CheckCircle2 size={18} />
                                                     </div>
                                                     <div className="text-left">
-                                                        <h4 className="font-bold text-slate-800 text-sm group-hover:text-blue-700">{site?.name || assessment.siteName}</h4>
-                                                        <div className="text-xs text-slate-500 mt-1">{assessment.department} | {assessment.authorName} | {new Date(assessment.timestamp).toLocaleDateString()}</div>
+                                                        <h4 className="font-bold text-slate-700 text-sm group-hover:text-emerald-700">{site.name} <span className="text-[10px] text-emerald-600 font-bold ml-1 bg-emerald-100 px-1.5 py-0.5 rounded">평가 면제</span></h4>
+                                                        <div className="text-xs text-slate-500 mt-1">{site.department} | 26년 4월 20일 이전 현장 자동 완료됨</div>
                                                     </div>
                                                 </div>
-                                                <ChevronRight className="text-slate-300 group-hover:text-blue-500" />
+                                                <ChevronRight className="text-slate-300 group-hover:text-emerald-500" />
                                             </button>
-                                        )
-                                    })
+                                        ))}
+                                    </>
                                 )}
                                 
                                 <div className="pt-8 border-t border-slate-200">
                                     <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">현재 진행 중인 현장 (결재/조회용)</h4>
                                     <div className="space-y-3">
-                                        {sites.filter(s => !assessments.some(a => a.siteId === s.id && a.status === RiskAssessmentStatus.APPROVED)).map(site => (
-                                            <button key={site.id} onClick={() => setSelectedRiskSite(site)} className="w-full bg-slate-50 p-4 rounded-xl border border-slate-200 flex justify-between items-center hover:border-indigo-300 hover:bg-white transition-all group">
-                                                <div className="flex items-center gap-4">
-                                                    <div className="w-10 h-10 rounded-lg flex items-center justify-center font-bold bg-white text-slate-400 border border-slate-200">{site.floor}</div>
-                                                    <div className="text-left">
-                                                        <h4 className="font-bold text-slate-600 text-sm">{site.name}</h4>
-                                                        <div className="text-xs text-slate-400 mt-1">{site.department} | {site.endDate} 종료</div>
+                                        {pendingRiskSites.length === 0 ? (
+                                            <div className="text-center py-6 text-slate-400 text-sm">진행 중인 현장이 없습니다.</div>
+                                        ) : (
+                                            pendingRiskSites.map(site => (
+                                                <button key={site.id} onClick={() => setSelectedRiskSite(site)} className="w-full bg-slate-50 p-4 rounded-xl border border-slate-200 flex justify-between items-center hover:border-indigo-300 hover:bg-white transition-all group">
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="w-10 h-10 rounded-lg flex items-center justify-center font-bold bg-white text-slate-400 border border-slate-200">{site.floor}</div>
+                                                        <div className="text-left">
+                                                            <h4 className="font-bold text-slate-600 text-sm">{site.name}</h4>
+                                                            <div className="text-xs text-slate-400 mt-1">{site.department} | {site.endDate} 종료</div>
+                                                        </div>
                                                     </div>
-                                                </div>
-                                                <div className="px-2 py-1 bg-white border border-slate-200 text-slate-400 rounded-lg text-[10px] font-bold">결재 대기/확인</div>
-                                            </button>
-                                        ))}
+                                                    <div className="px-2 py-1 bg-white border border-slate-200 text-slate-400 rounded-lg text-[10px] font-bold">결재 대기/확인</div>
+                                                </button>
+                                            ))
+                                        )}
                                     </div>
                                 </div>
                             </div>
