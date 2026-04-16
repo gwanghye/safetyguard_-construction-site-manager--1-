@@ -302,7 +302,8 @@ const Dashboard: React.FC<DashboardProps> = ({ logs, sites, assessments, onAddSi
             const end = new Date(site.endDate);
             const selected = new Date(selectedDate);
             start.setHours(0, 0, 0, 0); end.setHours(0, 0, 0, 0); selected.setHours(0, 0, 0, 0);
-            return selected >= start && selected <= end;
+            const isExemptGlobally = end < new Date('2026-04-20');
+            return selected >= start && selected <= end && !isExemptGlobally;
         })
         .sort((a, b) => {
             const aStatus = getStatus(a.endDate);

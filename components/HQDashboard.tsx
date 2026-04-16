@@ -68,6 +68,29 @@ const HQDashboard: React.FC<HQDashboardProps> = ({ stores, onExit }) => {
         };
     }, []);
 
+    const isRiskAssessmentExempt = (site: Site) => new Date(site.endDate) < new Date('2026-04-20');
+    
+    const combinedAssessments = useMemo(() => {
+        const list = [...assessments];
+        sites.forEach(site => {
+            if (isRiskAssessmentExempt(site) && !list.some(a => a.siteId === site.id)) {
+                list.push({
+                    id: `exempt-${site.id}`,
+                    siteId: site.id,
+                    siteName: site.name,
+                    authorName: '자동 완료',
+                    department: site.department || '미상',
+                    constructionPeriod: `${site.startDate} ~ ${site.endDate}`,
+                    timestamp: new Date(site.endDate).getTime(),
+                    status: RiskAssessmentStatus.APPROVED,
+                    checklist: { ceiling: '양호', floor: '양호', wall: '양호', equipment: '양호', fireSafety: '양호', electrical: '양호', others: '양호' } as any,
+                    notes: '26.04.20 이전 시행 현장 (자동 완료됨)'
+                });
+            }
+        });
+        return list;
+    }, [assessments, sites]);
+
     // Filter Logs by Date
     const filteredLogs = useMemo(() => {
         const start = new Date(startDate);
@@ -725,9 +748,9 @@ const HQDashboard: React.FC<HQDashboardProps> = ({ stores, onExit }) => {
                                                   </tr>
                                               </thead>
                                               <tbody className="divide-y divide-slate-100">
-                                                  {assessments.filter(a => !selectedStoreId || sites.find(s => s.id === a.siteId)?.storeId === selectedStoreId).length === 0 ? (
+                                                  {combinedAssessments.filter(a => !selectedStoreId || sites.find(s => s.id === a.siteId)?.storeId === selectedStoreId).length === 0 ? (
                                                       <tr><td colSpan={4} className="text-center py-10 text-slate-400 font-medium">조회 가능한 평가서가 없습니다.</td></tr>
-                                                  ) : assessments
+                                                  ) : combinedAssessments
                                                     .filter(a => !selectedStoreId || sites.find(s => s.id === a.siteId)?.storeId === selectedStoreId)
                                                     .sort((a,b) => b.timestamp - a.timestamp)
                                                     .map(a => {
