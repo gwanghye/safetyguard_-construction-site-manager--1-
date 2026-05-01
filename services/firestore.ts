@@ -63,7 +63,9 @@ export const subscribeToLogs = (storeId: string, callback: (logs: InspectionLog[
 
     const q = query(
         collection(db, 'logs'),
-        where('storeId', '==', storeId)
+        where('storeId', '==', storeId),
+        orderBy('timestamp', 'desc'),
+        limit(100)
     );
 
     return onSnapshot(q, (snapshot) => {
@@ -148,7 +150,8 @@ export const subscribeToAllLogs = (callback: (logs: InspectionLog[]) => void) =>
     const q = query(
         collection(db, 'logs'),
         where('timestamp', '>=', ninetyDaysAgo),
-        orderBy('timestamp', 'desc')
+        orderBy('timestamp', 'desc'),
+        limit(50)
     );
     
     return onSnapshot(q, (snapshot) => {
