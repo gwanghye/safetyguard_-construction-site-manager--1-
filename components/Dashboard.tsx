@@ -31,6 +31,8 @@ const Dashboard: React.FC<DashboardProps> = ({ logs, sites, assessments, onAddSi
     const [actionNotes, setActionNotes] = useState("");
     const [isSubmittingAction, setIsSubmittingAction] = useState(false);
 
+    const [selectedHistorySiteId, setSelectedHistorySiteId] = useState<string | null>(null);
+
     const [siteForm, setSiteForm] = useState<Partial<Site>>({
         floor: '1F',
         status: '대기',
@@ -302,8 +304,7 @@ const Dashboard: React.FC<DashboardProps> = ({ logs, sites, assessments, onAddSi
             const end = new Date(site.endDate);
             const selected = new Date(selectedDate);
             start.setHours(0, 0, 0, 0); end.setHours(0, 0, 0, 0); selected.setHours(0, 0, 0, 0);
-            const isExemptGlobally = end < new Date('2026-04-20');
-            return selected >= start && selected <= end && !isExemptGlobally;
+            return selected >= start && selected <= end;
         })
         .sort((a, b) => {
             const aStatus = getStatus(a.endDate);
@@ -560,6 +561,9 @@ const Dashboard: React.FC<DashboardProps> = ({ logs, sites, assessments, onAddSi
                                                         </div>
                                                     </div>
                                                 </div>
+                                                <button onClick={() => setSelectedHistorySiteId(site.id)} className="flex items-center gap-1.5 text-xs bg-slate-50 hover:bg-slate-100 text-slate-600 font-bold px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm transition-colors whitespace-nowrap">
+                                                    <Clock size={12} /> 전체 이력
+                                                </button>
                                             </div>
 
                                             <div className="flex gap-2 mt-2">
@@ -900,6 +904,99 @@ const Dashboard: React.FC<DashboardProps> = ({ logs, sites, assessments, onAddSi
                         <div className="flex gap-3">
                             <button onClick={() => setDeleteTargetId(null)} className="flex-1 py-3 bg-slate-100 rounded-xl font-bold">취소</button>
                             <button onClick={confirmDelete} className="flex-1 py-3 bg-red-600 text-white rounded-xl font-bold">삭제</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {selectedHistorySiteId && (
+                <div className="fixed inset-0 z-[70] bg-slate-100 flex flex-col animate-in fade-in zoom-in-95 duration-200">
+                    <div className="bg-white border-b border-slate-200 px-4 py-4 flex items-center justify-between sticky top-0 z-10 shadow-sm">
+                        <div>
+                            <h3 className="font-bold text-slate-800 text-lg flex items-center gap-2">
+                                <Clock className="text-indigo-500" />
+                                {sites.find(s => s.id === selectedHistorySiteId)?.name} 점검 이력
+                            </h3>
+                            <p className="text-xs text-slate-500 mt-1">이 현장의 전체 점검 내역입니다.</p>
+                        </div>
+                        <button onClick={() => setSelectedHistorySiteId(null)} className="p-2 text-slate-400 hover:text-slate-600 bg-slate-50 hover:bg-slate-100 rounded-full transition-colors">
+                            <X size={24} />
+                        </button>
+                    </div>
+                    
+                    <div className="flex-1 overflow-y-auto p-4 md:p-6 pb-24">
+                        <div className="max-w-2xl mx-auto space-y-4">
+                            {logs.filter(l => l.siteId === selectedHistorySiteId).length === 0 ? (
+                                <div className="bg-white rounded-2xl border border-slate-200 p-10 text-center text-slate-400 shadow-sm flex flex-col items-center gap-3">
+                                    <Ban size={32} className="text-slate-300" />
+                                    <span>점검 이력이 없습니다.</span>
+                                </div>
+                            ) : (
+                                logs.filter(l => l.siteId === selectedHistorySiteId)
+                                    .sort((a, b) => b.timestamp - a.timestamp)
+                                    .map(log => (
+                                        <div key={log.id} className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                                            <div className={`p-3 border-b border-slate-100 flex justify-between items-center ${log.riskLevel === RiskLevel.WARNING ? 'bg-red-50' : log.riskLevel === RiskLevel.CAUTION ? 'bg-amber-50' : 'bg-emerald-50'}`}>
+                                                <div className="flex items-center gap-2">
+                                                    <span className={`text-xs font-bold px-2 py-1 rounded bg-white shadow-sm
+                                                        ${log.inspectorRole === Role.SAFETY ? 'text-emerald-600' : log.inspectorRole === Role.SALES ? 'text-purple-600' : 'text-blue-600'}`}
+                                                    >
+                                                        {log.inspectorRole === Role.SAFETY ? '안전' : log.inspectorRole === Role.SALES ? '영업' : '시설'}
+                                                    </span>
+                                                    <span className="text-sm font-bold text-slate-700">{log.inspector}</span>
+                                                </div>
+                                                <div className="text-right">
+                                                    <div className="text-xs font-bold text-slate-800">{new Date(log.timestamp).toLocaleDateString()}</div>
+                                                    <div className="text-[10px] text-slate-500">{new Date(log.timestamp).toLocaleTimeString()}</div>
+                                                </div>
+                                            </div>
+                                            
+                                            <div className="p-4">
+                                                {log.workType && (
+                                                    <div className="flex items-center gap-2 text-sm font-bold text-slate-700 mb-3 bg-slate-50 p-2 rounded-lg border border-slate-100">
+                                                        <Hammer size={14} className="text-indigo-500" />
+                                                        <span className="text-xs text-slate-500">작업 내용:</span>
+                                                        <span>{log.workType}</span>
+                                                    </div>
+                                                )}
+
+                                                <div className="flex items-center gap-2 mb-3">
+                                                    <span className={`px-2 py-1 text-xs font-bold rounded ${log.riskLevel === RiskLevel.WARNING ? 'bg-red-100 text-red-700' : log.riskLevel === RiskLevel.CAUTION ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                                                        {log.riskLevel}
+                                                    </span>
+                                                </div>
+
+                                                {log.notes && (
+                                                    <div className="text-sm text-slate-700 bg-slate-50 p-3 rounded-lg border border-slate-100 mb-3 whitespace-pre-wrap leading-relaxed">
+                                                        {log.notes}
+                                                    </div>
+                                                )}
+
+                                                {log.photos.length > 0 && (
+                                                    <div className="flex gap-2 overflow-x-auto no-scrollbar py-1">
+                                                        {log.photos.map((photo, idx) => (
+                                                            <button key={idx} onClick={() => setSelectedImage(photo)} className="w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden border border-slate-200 active:scale-95 transition-transform">
+                                                                <img src={photo} className="w-full h-full object-cover hover:opacity-90" alt="" />
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                                
+                                                {log.action && (
+                                                    <div className={`mt-4 p-3 rounded-xl border text-sm ${log.action.status === 'RESOLVED' ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'}`}>
+                                                        <div className="flex items-center gap-1.5 mb-2">
+                                                            {log.action.status === 'RESOLVED' ? <Check size={14} className="text-emerald-600" /> : <AlertTriangle size={14} className="text-red-500" />}
+                                                            <span className="font-bold">{log.action.status === 'RESOLVED' ? '조치 완료' : '조치 필요'}</span>
+                                                        </div>
+                                                        <div className="text-slate-700 bg-white p-2 rounded-lg border border-slate-100">
+                                                            {log.action.actionNotes}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))
+                            )}
                         </div>
                     </div>
                 </div>
