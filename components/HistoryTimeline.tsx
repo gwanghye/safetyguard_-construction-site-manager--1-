@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { InspectionLog, Site, Role, RiskLevel } from '../types';
-import { X, Clock, AlertTriangle, CheckCircle2, ChevronRight, Ban, Hammer, ShieldAlert, FileText, Check, Maximize2 } from 'lucide-react';
+import { X, Clock, AlertTriangle, CheckCircle2, ChevronRight, Ban, Hammer, ShieldAlert, FileText, Check, Maximize2, AlertCircle, Search } from 'lucide-react';
 
 interface HistoryTimelineProps {
     site: Site;
@@ -11,6 +11,8 @@ interface HistoryTimelineProps {
 const HistoryTimeline: React.FC<HistoryTimelineProps> = ({ site, logs, onClose }) => {
     const [selectedLog, setSelectedLog] = useState<InspectionLog | null>(null);
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [filterMode, setFilterMode] = useState<'ALL' | 'RISK' | 'PENDING'>('ALL');
     const timelineRef = useRef<HTMLDivElement>(null);
 
     const siteLogs = logs.filter(l => l.siteId === site.id);
@@ -36,15 +38,27 @@ const HistoryTimeline: React.FC<HistoryTimelineProps> = ({ site, logs, onClose }
 
     // 통계 계산
     const totalChecks = siteLogs.length;
-    const warningCount = siteLogs.filter(l => l.riskLevel === RiskLevel.WARNING).length;
+    const warningCount = siteLogs.filter(l => l.riskLevel !== RiskLevel.NORMAL).length;
     const unresolvedCount = siteLogs.filter(l => l.action?.status === 'PENDING').length;
     
     const safetyChecks = siteLogs.filter(l => l.inspectorRole === Role.SAFETY).length;
     const facilityChecks = siteLogs.filter(l => l.inspectorRole === Role.FACILITY).length;
     const salesChecks = siteLogs.filter(l => l.inspectorRole === Role.SALES).length;
 
+    const filteredLogs = siteLogs.filter(log => {
+        const matchesSearch = log.inspector.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                             (log.notes && log.notes.toLowerCase().includes(searchTerm.toLowerCase()));
+        
+        if (!matchesSearch) return false;
+        
+        if (filterMode === 'RISK') return log.riskLevel !== RiskLevel.NORMAL;
+        if (filterMode === 'PENDING') return log.action?.status === 'PENDING';
+        
+        return true;
+    });
+
     const getLogsForDateAndRole = (dateStr: string, role: Role) => {
-        return siteLogs.filter(l => formatDate(new Date(l.timestamp)) === dateStr && l.inspectorRole === role);
+        return filteredLogs.filter(l => formatDate(new Date(l.timestamp)) === dateStr && l.inspectorRole === role);
     };
 
     const scrollToDate = (dateStr: string) => {
@@ -78,39 +92,63 @@ const HistoryTimeline: React.FC<HistoryTimelineProps> = ({ site, logs, onClose }
                 {/* Left/Main Timeline Area */}
                 <div className="flex-1 flex flex-col h-full bg-slate-50 relative overflow-hidden transition-all duration-300">
                     
-                    {/* Top Dashboard & Minimap */}
+                    {/* Dashboard Summary & Filter Bar */}
                     <div className="shrink-0 bg-white border-b border-slate-200 shadow-sm relative z-10">
-                        {/* Stats Widgets */}
-                        <div className="grid grid-cols-4 gap-4 p-4 border-b border-slate-100 bg-slate-50/50">
-                            <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm text-center">
-                                <div className="text-xs font-bold text-slate-500 mb-1">총 점검 횟수</div>
-                                <div className="text-2xl font-black text-slate-800">{totalChecks}건</div>
-                            </div>
-                            <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm text-center">
-                                <div className="text-xs font-bold text-slate-500 mb-1">발견된 위험</div>
-                                <div className="text-2xl font-black text-red-600">{warningCount}건</div>
-                            </div>
-                            <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm text-center">
-                                <div className="text-xs font-bold text-slate-500 mb-1">미조치 항목</div>
-                                <div className="text-2xl font-black text-amber-600">{unresolvedCount}건</div>
-                            </div>
-                            <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
-                                <div className="text-[10px] font-bold text-slate-500 mb-2 text-center">주체별 점검수</div>
-                                <div className="space-y-1.5">
-                                    <div className="flex items-center text-[10px]"><span className="w-8 font-bold text-emerald-600">안전</span> <div className="flex-1 bg-slate-100 h-1.5 ml-1 rounded-full"><div className="bg-emerald-500 h-full rounded-full" style={{width:`${Math.min(100, (safetyChecks/dateList.length)*100)}%`}}></div></div> <span className="ml-1 w-4 text-right">{safetyChecks}</span></div>
-                                    <div className="flex items-center text-[10px]"><span className="w-8 font-bold text-blue-600">시설</span> <div className="flex-1 bg-slate-100 h-1.5 ml-1 rounded-full"><div className="bg-blue-500 h-full rounded-full" style={{width:`${Math.min(100, (facilityChecks/dateList.length)*100)}%`}}></div></div> <span className="ml-1 w-4 text-right">{facilityChecks}</span></div>
-                                    <div className="flex items-center text-[10px]"><span className="w-8 font-bold text-purple-600">영업</span> <div className="flex-1 bg-slate-100 h-1.5 ml-1 rounded-full"><div className="bg-purple-500 h-full rounded-full" style={{width:`${Math.min(100, (salesChecks/dateList.length)*100)}%`}}></div></div> <span className="ml-1 w-4 text-right">{salesChecks}</span></div>
+                        {/* Stats Widgets & Filters */}
+                        <div className="grid grid-cols-4 gap-3 p-4 border-b border-slate-100 bg-slate-50/50">
+                            <button 
+                                onClick={() => setFilterMode('ALL')}
+                                className={`p-3 rounded-xl border transition-all text-center ${filterMode === 'ALL' ? 'bg-white border-indigo-500 shadow-md ring-2 ring-indigo-50' : 'bg-white border-slate-200 hover:border-slate-300'}`}
+                            >
+                                <div className="text-[10px] font-bold text-slate-400 mb-1">전체</div>
+                                <div className="text-xl font-black text-slate-800">{totalChecks}</div>
+                            </button>
+                            <button 
+                                onClick={() => setFilterMode('RISK')}
+                                className={`p-3 rounded-xl border transition-all text-center ${filterMode === 'RISK' ? 'bg-red-50 border-red-500 shadow-md ring-2 ring-red-50' : 'bg-white border-slate-200 hover:border-red-200'}`}
+                            >
+                                <div className="text-[10px] font-bold text-red-400 mb-1">위험</div>
+                                <div className="text-xl font-black text-red-600">{warningCount}</div>
+                            </button>
+                            <button 
+                                onClick={() => setFilterMode('PENDING')}
+                                className={`p-3 rounded-xl border transition-all text-center ${filterMode === 'PENDING' ? 'bg-amber-50 border-amber-500 shadow-md ring-2 ring-amber-50' : 'bg-white border-slate-200 hover:border-amber-200'}`}
+                            >
+                                <div className="text-[10px] font-bold text-amber-500 mb-1">미조치</div>
+                                <div className="text-xl font-black text-amber-600">{unresolvedCount}</div>
+                            </button>
+                            <div className="bg-white p-2 rounded-xl border border-slate-200 shadow-sm">
+                                <div className="text-[9px] font-bold text-slate-500 mb-1 text-center">직군별</div>
+                                <div className="space-y-0.5">
+                                    <div className="flex items-center text-[8px]"><span className="w-6 font-bold text-emerald-600">안전</span> <div className="flex-1 bg-slate-100 h-1 ml-1 rounded-full"><div className="bg-emerald-500 h-full rounded-full" style={{width:`${Math.min(100, (safetyChecks/Math.max(1,totalChecks))*100)}%`}}></div></div></div>
+                                    <div className="flex items-center text-[8px]"><span className="w-6 font-bold text-blue-600">시설</span> <div className="flex-1 bg-slate-100 h-1 ml-1 rounded-full"><div className="bg-blue-500 h-full rounded-full" style={{width:`${Math.min(100, (facilityChecks/Math.max(1,totalChecks))*100)}%`}}></div></div></div>
+                                    <div className="flex items-center text-[8px]"><span className="w-6 font-bold text-purple-600">영업</span> <div className="flex-1 bg-slate-100 h-1 ml-1 rounded-full"><div className="bg-purple-500 h-full rounded-full" style={{width:`${Math.min(100, (salesChecks/Math.max(1,totalChecks))*100)}%`}}></div></div></div>
                                 </div>
+                            </div>
+                        </div>
+
+                        {/* Search Bar */}
+                        <div className="px-4 py-2 bg-white border-b border-slate-100">
+                            <div className="relative">
+                                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                                <input
+                                    type="text"
+                                    placeholder="점검자 또는 메모 검색..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    className="w-full bg-slate-50 border-none rounded-lg py-1.5 pl-8 pr-3 text-xs focus:ring-1 focus:ring-indigo-500 outline-none"
+                                />
                             </div>
                         </div>
 
                         {/* Horizontal Minimap Strip */}
                         <div className="px-4 py-3 overflow-x-auto no-scrollbar flex gap-2 items-center">
-                            <span className="text-[10px] font-bold text-slate-400 whitespace-nowrap bg-slate-100 px-2 py-1 rounded">출석부 미니맵</span>
+                            <span className="text-[10px] font-bold text-slate-400 whitespace-nowrap bg-slate-100 px-2 py-1 rounded">미니맵</span>
                             {dateList.map(date => {
                                 const facLogs = getLogsForDateAndRole(date, Role.FACILITY);
                                 const safLogs = getLogsForDateAndRole(date, Role.SAFETY);
                                 const salLogs = getLogsForDateAndRole(date, Role.SALES);
+                                if (filterMode !== 'ALL' && facLogs.length === 0 && safLogs.length === 0 && salLogs.length === 0) return null;
                                 return (
                                     <button 
                                         key={date} 
@@ -119,9 +157,9 @@ const HistoryTimeline: React.FC<HistoryTimelineProps> = ({ site, logs, onClose }
                                     >
                                         <div className="text-[9px] font-bold text-slate-500">{date.slice(5).replace('-','/')}</div>
                                         <div className="flex gap-0.5">
-                                            <div className={`w-2 h-2 rounded-full ${facLogs.length > 0 ? (facLogs.some(l => l.riskLevel === RiskLevel.WARNING) ? 'bg-red-500' : 'bg-blue-500') : 'bg-slate-200'}`}></div>
-                                            <div className={`w-2 h-2 rounded-full ${safLogs.length > 0 ? (safLogs.some(l => l.riskLevel === RiskLevel.WARNING) ? 'bg-red-500' : 'bg-emerald-500') : 'bg-slate-200'}`}></div>
-                                            <div className={`w-2 h-2 rounded-full ${salLogs.length > 0 ? (salLogs.some(l => l.riskLevel === RiskLevel.WARNING) ? 'bg-red-500' : 'bg-purple-500') : 'bg-slate-200'}`}></div>
+                                            <div className={`w-2 h-2 rounded-full ${facLogs.length > 0 ? (facLogs.some(l => l.riskLevel !== RiskLevel.NORMAL) ? 'bg-red-500' : 'bg-blue-500') : 'bg-slate-200'}`}></div>
+                                            <div className={`w-2 h-2 rounded-full ${safLogs.length > 0 ? (safLogs.some(l => l.riskLevel !== RiskLevel.NORMAL) ? 'bg-red-500' : 'bg-emerald-500') : 'bg-slate-200'}`}></div>
+                                            <div className={`w-2 h-2 rounded-full ${salLogs.length > 0 ? (salLogs.some(l => l.riskLevel !== RiskLevel.NORMAL) ? 'bg-red-500' : 'bg-purple-500') : 'bg-slate-200'}`}></div>
                                         </div>
                                     </button>
                                 );
@@ -198,9 +236,17 @@ const HistoryTimeline: React.FC<HistoryTimelineProps> = ({ site, logs, onClose }
                                                                     ) : (
                                                                         <div className="h-6 mb-1"></div>
                                                                     )}
-                                                                    <div className="text-[10px] md:text-xs text-slate-600 line-clamp-2 md:line-clamp-3 leading-relaxed">
+                                                                    <div className="text-[10px] md:text-xs text-slate-600 line-clamp-2 md:line-clamp-3 leading-relaxed mb-2">
                                                                         {log.notes || "특이사항 없음"}
                                                                     </div>
+                                                                    {log.action && (
+                                                                        <div className={`p-1.5 rounded-lg flex items-center gap-1.5 text-[9px] font-bold mt-2
+                                                                            ${log.action.status === 'RESOLVED' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-red-50 text-red-600 border border-red-100'}
+                                                                        `}>
+                                                                            {log.action.status === 'RESOLVED' ? <Check size={10} /> : <AlertCircle size={10} />}
+                                                                            {log.action.status === 'RESOLVED' ? '조치 완료' : '조치 필요'}
+                                                                        </div>
+                                                                    )}
                                                                 </div>
                                                             </div>
                                                         ))}
