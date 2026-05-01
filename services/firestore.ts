@@ -72,11 +72,9 @@ export const subscribeToLogs = (storeId: string, callback: (logs: InspectionLog[
             ...doc.data()
         })) as InspectionLog[];
 
-        // 인덱스 에러 방지를 위해 정렬은 클라이언트에서 수행
+        // 모든 과거 기록을 볼 수 있도록 제한 없이 정렬만 수행
         logs.sort((a, b) => b.timestamp - a.timestamp);
-        
-        // 속도를 위해 최근 100건만 유지
-        callback(logs.slice(0, 100));
+        callback(logs);
     }, (error) => {
         console.error("Error subscribing to store logs:", error);
     });
@@ -146,11 +144,11 @@ export const subscribeToAllSites = (callback: (sites: Site[]) => void) => {
 };
 
 export const subscribeToAllLogs = (callback: (logs: InspectionLog[]) => void) => {
-    // 성능 최적화: 본사 대시보드에서는 최근 90일치 로그만 기본으로 로드
-    const ninetyDaysAgo = Date.now() - (90 * 24 * 60 * 60 * 1000);
+    // 본사 대시보드도 최근 1년치 정도로 범위를 넓혀서 충분히 조회 가능하게 수정
+    const oneYearAgo = Date.now() - (365 * 24 * 60 * 60 * 1000);
     const q = query(
         collection(db, 'logs'),
-        where('timestamp', '>=', ninetyDaysAgo)
+        where('timestamp', '>=', oneYearAgo)
     );
     
     return onSnapshot(q, (snapshot) => {
@@ -159,16 +157,15 @@ export const subscribeToAllLogs = (callback: (logs: InspectionLog[]) => void) =>
             ...doc.data()
         })) as InspectionLog[];
         
-        // 인덱스 없이도 작동하도록 클라이언트에서 정렬 및 제한
         logs.sort((a, b) => b.timestamp - a.timestamp);
-        callback(logs.slice(0, 100));
+        callback(logs);
     }, (error) => {
         console.error("Error subscribing to all logs:", error);
         const fallbackQ = query(collection(db, 'logs'));
         onSnapshot(fallbackQ, (snapshot) => {
             const logs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as InspectionLog[];
             logs.sort((a, b) => b.timestamp - a.timestamp);
-            callback(logs.slice(0, 100));
+            callback(logs);
         });
     });
 };
