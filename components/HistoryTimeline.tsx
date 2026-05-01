@@ -12,7 +12,7 @@ const HistoryTimeline: React.FC<HistoryTimelineProps> = ({ site, logs, onClose }
     const [selectedLog, setSelectedLog] = useState<InspectionLog | null>(null);
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
-    const [filterMode, setFilterMode] = useState<'ALL' | 'RISK' | 'PENDING'>('ALL');
+    const [filterMode, setFilterMode] = useState<'ALL' | 'WARNING' | 'CAUTION' | 'PENDING'>('ALL');
     const timelineRef = useRef<HTMLDivElement>(null);
 
     const siteLogs = logs.filter(l => l.siteId === site.id);
@@ -38,7 +38,8 @@ const HistoryTimeline: React.FC<HistoryTimelineProps> = ({ site, logs, onClose }
 
     // 통계 계산
     const totalChecks = siteLogs.length;
-    const warningCount = siteLogs.filter(l => l.riskLevel !== RiskLevel.NORMAL).length;
+    const warningCount = siteLogs.filter(l => l.riskLevel === RiskLevel.WARNING).length;
+    const cautionCount = siteLogs.filter(l => l.riskLevel === RiskLevel.CAUTION).length;
     const unresolvedCount = siteLogs.filter(l => l.action?.status === 'PENDING').length;
     
     const safetyChecks = siteLogs.filter(l => l.inspectorRole === Role.SAFETY).length;
@@ -51,7 +52,8 @@ const HistoryTimeline: React.FC<HistoryTimelineProps> = ({ site, logs, onClose }
         
         if (!matchesSearch) return false;
         
-        if (filterMode === 'RISK') return log.riskLevel !== RiskLevel.NORMAL;
+        if (filterMode === 'WARNING') return log.riskLevel === RiskLevel.WARNING;
+        if (filterMode === 'CAUTION') return log.riskLevel === RiskLevel.CAUTION;
         if (filterMode === 'PENDING') return log.action?.status === 'PENDING';
         
         return true;
@@ -104,27 +106,26 @@ const HistoryTimeline: React.FC<HistoryTimelineProps> = ({ site, logs, onClose }
                                 <div className="text-xl font-black text-slate-800">{totalChecks}</div>
                             </button>
                             <button 
-                                onClick={() => setFilterMode('RISK')}
-                                className={`p-3 rounded-xl border transition-all text-center ${filterMode === 'RISK' ? 'bg-red-50 border-red-500 shadow-md ring-2 ring-red-50' : 'bg-white border-slate-200 hover:border-red-200'}`}
+                                onClick={() => setFilterMode('WARNING')}
+                                className={`p-3 rounded-xl border transition-all text-center ${filterMode === 'WARNING' ? 'bg-red-50 border-red-500 shadow-md ring-2 ring-red-50' : 'bg-white border-slate-200 hover:border-red-200'}`}
                             >
-                                <div className="text-[10px] font-bold text-red-400 mb-1">위험</div>
+                                <div className="text-[10px] font-bold text-red-500 mb-1">위험</div>
                                 <div className="text-xl font-black text-red-600">{warningCount}</div>
                             </button>
                             <button 
-                                onClick={() => setFilterMode('PENDING')}
-                                className={`p-3 rounded-xl border transition-all text-center ${filterMode === 'PENDING' ? 'bg-amber-50 border-amber-500 shadow-md ring-2 ring-amber-50' : 'bg-white border-slate-200 hover:border-amber-200'}`}
+                                onClick={() => setFilterMode('CAUTION')}
+                                className={`p-3 rounded-xl border transition-all text-center ${filterMode === 'CAUTION' ? 'bg-amber-50 border-amber-500 shadow-md ring-2 ring-amber-50' : 'bg-white border-slate-200 hover:border-amber-200'}`}
                             >
-                                <div className="text-[10px] font-bold text-amber-500 mb-1">미조치</div>
-                                <div className="text-xl font-black text-amber-600">{unresolvedCount}</div>
+                                <div className="text-[10px] font-bold text-amber-600 mb-1">주의</div>
+                                <div className="text-xl font-black text-amber-600">{cautionCount}</div>
                             </button>
-                            <div className="bg-white p-2 rounded-xl border border-slate-200 shadow-sm">
-                                <div className="text-[9px] font-bold text-slate-500 mb-1 text-center">직군별</div>
-                                <div className="space-y-0.5">
-                                    <div className="flex items-center text-[8px]"><span className="w-6 font-bold text-emerald-600">안전</span> <div className="flex-1 bg-slate-100 h-1 ml-1 rounded-full"><div className="bg-emerald-500 h-full rounded-full" style={{width:`${Math.min(100, (safetyChecks/Math.max(1,totalChecks))*100)}%`}}></div></div></div>
-                                    <div className="flex items-center text-[8px]"><span className="w-6 font-bold text-blue-600">시설</span> <div className="flex-1 bg-slate-100 h-1 ml-1 rounded-full"><div className="bg-blue-500 h-full rounded-full" style={{width:`${Math.min(100, (facilityChecks/Math.max(1,totalChecks))*100)}%`}}></div></div></div>
-                                    <div className="flex items-center text-[8px]"><span className="w-6 font-bold text-purple-600">영업</span> <div className="flex-1 bg-slate-100 h-1 ml-1 rounded-full"><div className="bg-purple-500 h-full rounded-full" style={{width:`${Math.min(100, (salesChecks/Math.max(1,totalChecks))*100)}%`}}></div></div></div>
-                                </div>
-                            </div>
+                            <button 
+                                onClick={() => setFilterMode('PENDING')}
+                                className={`p-3 rounded-xl border transition-all text-center ${filterMode === 'PENDING' ? 'bg-slate-50 border-slate-800 shadow-md ring-2 ring-slate-100' : 'bg-white border-slate-200 hover:border-slate-400'}`}
+                            >
+                                <div className="text-[10px] font-bold text-slate-600 mb-1">미조치</div>
+                                <div className="text-xl font-black text-slate-800">{unresolvedCount}</div>
+                            </button>
                         </div>
 
                         {/* Search Bar */}
