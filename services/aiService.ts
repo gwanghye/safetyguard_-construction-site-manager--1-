@@ -118,6 +118,46 @@ export const generateProjectFinalReport = async (site: { name: string, departmen
   }
 };
 
+export const verifyVisualAction = async (beforePhoto: string, afterPhoto: string, actionNotes: string): Promise<{ isResolved: boolean, feedback: string }> => {
+  const ai = getAiClient();
+  if (!ai) return { isResolved: true, feedback: "AI 서비스 불가. 자체 통과 처리합니다." };
+
+  try {
+    const cleanBefore = beforePhoto.replace(/^data:image\/(png|jpg|jpeg|webp);base64,/, "");
+    const cleanAfter = afterPhoto.replace(/^data:image\/(png|jpg|jpeg|webp);base64,/, "");
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: {
+        parts: [
+          { inlineData: { mimeType: 'image/jpeg', data: cleanBefore } },
+          { inlineData: { mimeType: 'image/jpeg', data: cleanAfter } },
+          { text: `건설 현장 안전 조치 판독관으로서 임무를 수행하세요.
+          사진 1은 '조치 전(위험 상황)'이며, 사진 2는 '조치 후(결과)'입니다.
+          
+          작업자의 조치 설명: "${actionNotes}"
+          
+          [판독 지침]
+          1. 사진 1에 나타난 위험 요소가 사진 2에서 시각적으로 완전히 제거되거나 개선되었는지 확인하세요.
+          2. 작업자의 설명과 실제 사진의 일치 여부를 판단하세요.
+          3. 첫 번째 줄에 반드시 'PASS' 또는 'FAIL'만 출력하세요.
+          4. 두 번째 줄에 판독 이유를 한국어로 한 문장(마크다운 없이) 작성하세요.` }
+        ]
+      }
+    });
+    
+    const text = response.text || "";
+    const isResolved = text.toUpperCase().includes('PASS');
+    const feedbackLines = text.split('\n');
+    const feedback = feedbackLines.length > 1 ? feedbackLines.slice(1).join(' ').trim() : text.replace('PASS', '').replace('FAIL', '').trim();
+    
+    return { isResolved, feedback };
+  } catch (error) {
+    console.error("Error visual verification:", error);
+    return { isResolved: true, feedback: "서버 오류로 AI 시각 검수를 생략합니다." };
+  }
+};
+
 export const validateCorrectiveAction = async (originalNotes: string, actionNotes: string): Promise<{ isResolved: boolean, feedback: string }> => {
   const ai = getAiClient();
   if (!ai) return { isResolved: true, feedback: "AI 서비스 불가. 자체 통과 처리합니다." };
@@ -186,5 +226,38 @@ export const generateRiskAssessmentInsights = async (assessments: any[]): Promis
   } catch (e) {
     console.error(e);
     return "데이터 분석 중 오류가 발생했습니다.";
+  }
+};
+export const generateWeeklySafetyReport = async (logs: InspectionLog[]): Promise<string> => {
+  const ai = getAiClient();
+  if (!ai) return "AI 서비스를 사용할 수 없습니다.";
+
+  if (logs.length === 0) return "분석할 점검 데이터가 없습니다.";
+
+  // 최근 1주일 데이터 필터링 (프론트에서 필터링해서 오겠지만 안전 장치)
+  const logsText = logs.map(log =>
+    `[${log.riskLevel}] ${log.siteName} (${log.inspectorRole}): ${log.notes || '메모없음'}, 체크리스트미흡:${Object.entries(log.checklist).filter(([_, v]) => !v).map(([k]) => k).join(',')}`
+  ).join('\n');
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: `당신은 현대백화점 그룹의 안전 보건 책임자(CSO)입니다. 지난 1주일간의 모든 현장 점검 로그를 분석하여 '전사 안전 트렌드 리포트'를 작성하세요.
+      
+      [분석 데이터]
+      ${logsText}
+
+      [작성 지침]
+      1. 마크다운 기호(**, *)를 절대 사용하지 마세요. 오직 줄바꿈과 텍스트만 사용하세요.
+      2. 다음 3가지 항목을 반드시 포함하세요:
+         - 이번 주 주요 트렌드: (가장 많이 발생한 위험 유형이나 전반적인 안전 수준 요약)
+         - 요주의 지점/공종: (집중 관리가 필요한 현장이나 작업 유형 언급)
+         - 다음 주 안전 권고: (현장 소장들에게 전달할 핵심 안전 강화 메시지)
+      3. 말투는 권위 있으면서도 명확하게 작성하세요. 5줄 이내로 핵심만 요약하세요.`
+    });
+    return response.text || "주간 분석 리포트를 생성하지 못했습니다.";
+  } catch (error) {
+    console.error("Error generating weekly report:", error);
+    return "트렌드 분석 중 오류가 발생했습니다.";
   }
 };

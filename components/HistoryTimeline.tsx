@@ -377,26 +377,63 @@ const HistoryTimeline: React.FC<HistoryTimelineProps> = ({ site, logs, onClose }
                                     </div>
                                 )}
 
-                                {/* AI 조치 권고 */}
+                                {/* 조치 내역 및 사진 인증 (Before & After) */}
                                 {selectedLog.action && (
-                                    <div className={`p-4 rounded-xl border ${selectedLog.action.status === 'RESOLVED' ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'}`}>
-                                        <div className="flex items-center gap-2 mb-3">
-                                            {selectedLog.action.status === 'RESOLVED' ? <Check size={18} className="text-emerald-600" /> : <AlertTriangle size={18} className="text-red-500" />}
-                                            <span className="font-bold text-slate-800 text-sm">{selectedLog.action.status === 'RESOLVED' ? '조치 완료됨' : '미조치 항목'}</span>
+                                    <div className={`p-4 rounded-2xl border ${selectedLog.action.status === 'RESOLVED' ? 'bg-emerald-50/50 border-emerald-200' : 'bg-red-50/50 border-red-200'}`}>
+                                        <div className="flex items-center justify-between mb-4">
+                                            <div className="flex items-center gap-2">
+                                                {selectedLog.action.status === 'RESOLVED' ? <CheckCircle2 size={20} className="text-emerald-600" /> : <AlertTriangle size={20} className="text-red-500" />}
+                                                <span className="font-bold text-slate-800">{selectedLog.action.status === 'RESOLVED' ? '조치 완료 인증' : '미조치 항목'}</span>
+                                            </div>
+                                            {selectedLog.action.resolvedAt && (
+                                                <span className="text-[10px] text-slate-500 font-bold">{new Date(selectedLog.action.resolvedAt).toLocaleString()}</span>
+                                            )}
                                         </div>
                                         
-                                        <div className="space-y-3">
+                                        <div className="space-y-4">
+                                            {/* Before & After Photo Comparison */}
+                                            {selectedLog.action.status === 'RESOLVED' && (
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    <div className="space-y-1.5">
+                                                        <div className="text-[10px] font-bold text-red-500 text-center bg-red-50 py-0.5 rounded uppercase tracking-wider">Before (지적)</div>
+                                                        <div className="aspect-square rounded-xl overflow-hidden border border-red-100 bg-white">
+                                                            <img src={selectedLog.photos[0]} className="w-full h-full object-cover" alt="before" onClick={() => setSelectedImage(selectedLog.photos[0])} />
+                                                        </div>
+                                                    </div>
+                                                    <div className="space-y-1.5">
+                                                        <div className="text-[10px] font-bold text-emerald-600 text-center bg-emerald-50 py-0.5 rounded uppercase tracking-wider">After (조치)</div>
+                                                        <div className="aspect-square rounded-xl overflow-hidden border border-emerald-100 bg-white relative group">
+                                                            {selectedLog.action.resolvedPhotos && selectedLog.action.resolvedPhotos.length > 0 ? (
+                                                                <>
+                                                                    <img src={selectedLog.action.resolvedPhotos[0]} className="w-full h-full object-cover" alt="after" onClick={() => setSelectedImage(selectedLog.action.resolvedPhotos![0])} />
+                                                                    {selectedLog.action.resolvedPhotos.length > 1 && (
+                                                                        <div className="absolute bottom-1 right-1 bg-black/60 text-white text-[8px] px-1.5 py-0.5 rounded font-bold">+{selectedLog.action.resolvedPhotos.length - 1}</div>
+                                                                    )}
+                                                                </>
+                                                            ) : (
+                                                                <div className="w-full h-full flex items-center justify-center bg-slate-100 text-slate-400">
+                                                                    <X size={20} />
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+
                                             <div>
                                                 <span className="text-[10px] font-bold text-slate-500 block mb-1">작업자 입력 조치 내용</span>
-                                                <div className="text-sm text-slate-700 bg-white p-3 rounded-lg border shadow-sm">
+                                                <div className="text-sm text-slate-700 bg-white p-3 rounded-lg border shadow-sm leading-relaxed">
                                                     {selectedLog.action.actionNotes}
                                                 </div>
                                             </div>
+
                                             {selectedLog.action.aiFeedback && (
-                                                <div>
-                                                    <span className="text-[10px] font-bold text-indigo-500 block mb-1">AI 추가 피드백</span>
-                                                    <div className="text-xs text-indigo-900 bg-indigo-50 p-3 rounded-lg border border-indigo-100 leading-relaxed">
-                                                        {selectedLog.action.aiFeedback}
+                                                <div className="animate-in slide-in-from-top-2">
+                                                    <span className="text-[10px] font-bold text-indigo-500 block mb-1 flex items-center gap-1">
+                                                        <BrainCircuit size={12} /> AI 조치 검증 피드백
+                                                    </span>
+                                                    <div className="text-xs text-indigo-900 bg-indigo-50 p-3 rounded-lg border border-indigo-100 leading-relaxed italic">
+                                                        "{selectedLog.action.aiFeedback}"
                                                     </div>
                                                 </div>
                                             )}

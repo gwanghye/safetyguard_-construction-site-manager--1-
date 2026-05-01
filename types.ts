@@ -140,7 +140,8 @@ export interface InspectionLog {
     status: 'PENDING' | 'RESOLVED';
     resolvedAt?: number;
     actionNotes?: string;
-    photoUrl?: string;
+    photoUrl?: string; // Legacy support
+    resolvedPhotos?: string[]; // New: Multiple after photos
     aiFeedback?: string;
   };
 }

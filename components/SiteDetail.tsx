@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { Site, InspectionLog, Role, RiskLevel } from '../types';
 import { ArrowLeft, Plus, AlertTriangle, Hammer, Check, BrainCircuit, RefreshCw, X, FilePlus } from 'lucide-react';
-import { validateCorrectiveAction } from '../services/aiService';
+import { verifyVisualAction } from '../services/aiService';
 import { updateLog } from '../services/firestore';
+
+import { compressImage } from '../utils/imageUtils';
 
 interface SiteDetailProps {
     site: Site;
@@ -16,18 +18,42 @@ interface SiteDetailProps {
 const SiteDetail: React.FC<SiteDetailProps> = ({ site, logs, currentRole, onBack, onStartInspection, onStartAssessment }) => {
     const [actionLogId, setActionLogId] = useState<string | null>(null);
     const [actionNotes, setActionNotes] = useState("");
+    const [actionPhotos, setActionPhotos] = useState<string[]>([]);
     const [isSubmittingAction, setIsSubmittingAction] = useState(false);
     
     // 이 현장의 점검 로그 중 현재 역할(Role)이 지적한 미조치 Warning 로그들만 필터링
     const siteLogs = logs.filter(l => l.siteId === site.id);
     const pendingWarnings = siteLogs.filter(l => l.riskLevel === RiskLevel.WARNING && (!l.action || l.action.status === 'PENDING') && l.inspectorRole === currentRole);
 
+    const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = e.target.files;
+        if (files) {
+            Array.from(files).forEach(file => {
+                const reader = new FileReader();
+                reader.onloadend = async () => {
+                    const originalBase64 = reader.result as string;
+                    const compressedBase64 = await compressImage(originalBase64);
+                    setActionPhotos(prev => [...prev, compressedBase64]);
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+    };
+
     const submitCorrectiveAction = async () => {
         if (!actionNotes.trim() || !actionLogId) return;
+        
+        // 조치 후 사진 인증 강제 (비즈니스 룰)
+        if (actionPhotos.length === 0) {
+            alert("조치 완료 인증 사진을 최소 1장 등록해주세요.");
+            return;
+        }
+
         setIsSubmittingAction(true);
         const log = siteLogs.find(l => l.id === actionLogId);
         if (log) {
-            const { isResolved, feedback } = await validateCorrectiveAction(log.notes, actionNotes);
+            // [업그레이드] 텍스트가 아닌 사진 비교 판독을 호출
+            const { isResolved, feedback } = await verifyVisualAction(log.photos[0], actionPhotos[0], actionNotes);
             
             const updatedLog: InspectionLog = {
                 ...log,
@@ -35,20 +61,27 @@ const SiteDetail: React.FC<SiteDetailProps> = ({ site, logs, currentRole, onBack
                     status: isResolved ? 'RESOLVED' : 'PENDING',
                     actionNotes: actionNotes,
                     resolvedAt: Date.now(),
+                    resolvedPhotos: actionPhotos,
                     aiFeedback: feedback
                 }
             };
 
             await updateLog(updatedLog);
             if (!isResolved) {
-                alert(`AI 추가 조치 권고:\n${feedback}`);
+                alert(`AI 시각적 판독 결과 (조치 미흡):\n${feedback}\n\n*보완 후 다시 제출해주세요.`);
             } else {
-                alert("조치가 정상적으로 승인되었습니다.");
+                alert(`AI 시각적 판독 완료 (정상):\n${feedback}`);
             }
         }
         setIsSubmittingAction(false);
-        setActionLogId(null);
-        setActionNotes("");
+        if (actionLogId) {
+             const result = siteLogs.find(l => l.id === actionLogId)?.action?.status === 'RESOLVED';
+             if (result) {
+                setActionLogId(null);
+                setActionNotes("");
+                setActionPhotos([]);
+             }
+        }
     };
 
     return (
@@ -106,23 +139,46 @@ const SiteDetail: React.FC<SiteDetailProps> = ({ site, logs, currentRole, onBack
                                             {actionLogId === log.id ? (
                                                 <div className="animate-in fade-in zoom-in-95">
                                                     <textarea 
-                                                        className="w-full border border-slate-200 rounded-xl p-3 bg-slate-50 text-sm focus:ring-2 focus:ring-indigo-500 outline-none mb-2"
+                                                        className="w-full border border-slate-200 rounded-xl p-3 bg-slate-50 text-sm focus:ring-2 focus:ring-indigo-500 outline-none mb-3"
                                                         placeholder="예: 노출된 전선 정리 및 절연 마감 완료"
                                                         rows={2}
                                                         value={actionNotes}
                                                         onChange={(e) => setActionNotes(e.target.value)}
                                                     />
+
+                                                    {/* Photo Upload for Action */}
+                                                    <div className="mb-4">
+                                                        <div className="flex flex-wrap gap-2 mb-2">
+                                                            {actionPhotos.map((photo, i) => (
+                                                                <div key={i} className="relative w-16 h-16 rounded-lg overflow-hidden border border-slate-200">
+                                                                    <img src={photo} className="w-full h-full object-cover" alt="action-proof" />
+                                                                    <button 
+                                                                        onClick={() => setActionPhotos(prev => prev.filter((_, idx) => idx !== i))}
+                                                                        className="absolute top-0.5 right-0.5 bg-black/50 text-white rounded-full p-0.5"
+                                                                    >
+                                                                        <X size={10} />
+                                                                    </button>
+                                                                </div>
+                                                            ))}
+                                                            <label className="w-16 h-16 rounded-lg border-2 border-dashed border-slate-200 flex flex-col items-center justify-center text-slate-400 hover:border-indigo-300 hover:text-indigo-400 cursor-pointer transition-colors">
+                                                                <Plus size={20} />
+                                                                <input type="file" accept="image/*" multiple className="hidden" onChange={handlePhotoUpload} />
+                                                            </label>
+                                                        </div>
+                                                        <p className="text-[10px] text-slate-500 font-medium">조치 후 사진 인증이 반드시 필요합니다.</p>
+                                                    </div>
+
                                                     <div className="flex gap-2">
                                                         <button 
                                                             onClick={submitCorrectiveAction}
-                                                            disabled={isSubmittingAction || !actionNotes.trim()}
+                                                            disabled={isSubmittingAction || !actionNotes.trim() || actionPhotos.length === 0}
                                                             className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-lg text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-50 transition-colors"
                                                         >
                                                             {isSubmittingAction ? <RefreshCw className="animate-spin" size={14} /> : <BrainCircuit size={14} />}
-                                                            조치 승인 요청
+                                                            조치 및 사진인증 완료
                                                         </button>
                                                         <button 
-                                                            onClick={() => setActionLogId(null)}
+                                                            onClick={() => { setActionLogId(null); setActionPhotos([]); }}
                                                             className="px-4 py-2 bg-slate-200 text-slate-700 rounded-lg text-sm font-bold hover:bg-slate-300"
                                                         >
                                                             취소

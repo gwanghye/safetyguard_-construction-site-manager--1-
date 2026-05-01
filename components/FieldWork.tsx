@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Site, InspectionLog, RiskLevel, Role } from '../types';
 import { Camera, CheckSquare, Upload, X, Maximize2, AlertTriangle, MapPin, Hammer, ShieldCheck } from 'lucide-react';
 import { analyzeSafetyPhoto } from '../services/aiService';
+import { compressImage } from '../utils/imageUtils';
 
 interface FieldWorkProps {
     siteId: string | null;
@@ -40,54 +41,22 @@ const FieldWork: React.FC<FieldWorkProps> = ({ siteId, sites, currentRole, onSub
             setIsAnalyzing(true);
             const file = e.target.files[0];
 
-            // Image Compression Logic
-            const resizeImage = (file: File): Promise<string> => {
-                return new Promise((resolve) => {
-                    const reader = new FileReader();
-                    reader.readAsDataURL(file);
-                    reader.onload = (event) => {
-                        const img = new Image();
-                        img.src = event.target?.result as string;
-                        img.onload = () => {
-                            const canvas = document.createElement('canvas');
-                            const MAX_WIDTH = 800;
-                            const MAX_HEIGHT = 800;
-                            let width = img.width;
-                            let height = img.height;
-
-                            if (width > height) {
-                                if (width > MAX_WIDTH) {
-                                    height *= MAX_WIDTH / width;
-                                    width = MAX_WIDTH;
-                                }
-                            } else {
-                                if (height > MAX_HEIGHT) {
-                                    width *= MAX_HEIGHT / height;
-                                    height = MAX_HEIGHT;
-                                }
-                            }
-
-                            canvas.width = width;
-                            canvas.height = height;
-                            const ctx = canvas.getContext('2d');
-                            ctx?.drawImage(img, 0, 0, width, height);
-                            resolve(canvas.toDataURL('image/jpeg', 0.7)); // Compress to 70% quality
-                        };
-                    };
-                });
-            };
-
             try {
-                const compressedBase64 = await resizeImage(file);
-                setPhotos(prev => [...prev, compressedBase64]);
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = async (event) => {
+                    const originalBase64 = event.target?.result as string;
+                    const compressedBase64 = await compressImage(originalBase64);
+                    setPhotos(prev => [...prev, compressedBase64]);
 
-                // Simple AI analysis for the first photo to suggest risk
-                if (photos.length === 0) {
-                    const analysis = await analyzeSafetyPhoto(compressedBase64);
-                    if (analysis.risk === '경고') setRisk(RiskLevel.WARNING);
-                    if (analysis.risk === '주의') setRisk(RiskLevel.CAUTION);
-                    if (analysis.description && !notes) setNotes(analysis.description);
-                }
+                    // Simple AI analysis for the first photo to suggest risk
+                    if (photos.length === 0) {
+                        const analysis = await analyzeSafetyPhoto(compressedBase64);
+                        if (analysis.risk === '경고') setRisk(RiskLevel.WARNING);
+                        if (analysis.risk === '주의') setRisk(RiskLevel.CAUTION);
+                        if (analysis.description && !notes) setNotes(analysis.description);
+                    }
+                };
             } catch (error) {
                 console.error("Image processing error:", error);
                 alert("이미지 처리 중 오류가 발생했습니다.");

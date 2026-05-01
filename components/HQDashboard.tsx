@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Store, Site, InspectionLog, RiskLevel, Role, RiskAssessmentLog, RiskAssessmentStatus } from '../types';
 import { subscribeToAllSites, subscribeToAllLogs, updateSite, subscribeToAllRiskAssessments } from '../services/firestore';
-import { generateProjectFinalReport } from '../services/aiService';
+import { generateProjectFinalReport, generateWeeklySafetyReport } from '../services/aiService';
 import { RiskAssessment } from './RiskAssessment';
-import { ArrowLeft, BrainCircuit, Activity, Navigation, Building2, HardHat, ShieldCheck, Briefcase, RefreshCw, BarChart3, AlertTriangle, CalendarClock, Filter, Search as SearchIcon, X, CalendarDays, CheckCircle2, Download, FileCheck2 } from 'lucide-react';
+import { ArrowLeft, BrainCircuit, Activity, Navigation, Building2, HardHat, ShieldCheck, Briefcase, RefreshCw, BarChart3, AlertTriangle, CalendarClock, Filter, Search as SearchIcon, X, CalendarDays, CheckCircle2, Download, FileCheck2, TrendingUp } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, CartesianGrid, Legend } from 'recharts';
 
 interface HQDashboardProps {
@@ -33,7 +33,7 @@ const HQDashboard: React.FC<HQDashboardProps> = ({ stores, onExit }) => {
     // Date Filters (Default to this month)
     const [startDate, setStartDate] = useState<string>(() => {
         const d = new Date();
-        d.setDate(1); // First day of month
+        d.setDate(d.getDate() - 7); // Default to last 7 days for trend
         return d.toISOString().split('T')[0];
     });
     const [endDate, setEndDate] = useState<string>(() => {
@@ -52,6 +52,10 @@ const HQDashboard: React.FC<HQDashboardProps> = ({ stores, onExit }) => {
     const [reportSearchQuery, setReportSearchQuery] = useState<string>('');
     const [globalInsight, setGlobalInsight] = useState<string>("");
     const [isAnalyzingInsight, setIsAnalyzingInsight] = useState(false);
+    
+    // --- Weekly Trend State ---
+    const [weeklyReport, setWeeklyReport] = useState<string>("");
+    const [isAnalyzingWeekly, setIsAnalyzingWeekly] = useState(false);
 
     // Fetch Global Data
     useEffect(() => {
@@ -305,6 +309,21 @@ const HQDashboard: React.FC<HQDashboardProps> = ({ stores, onExit }) => {
         }
     };
 
+    const handleGenerateWeeklyReport = async () => {
+        if (isAnalyzingWeekly) return;
+        setIsAnalyzingWeekly(true);
+        try {
+            // 필터링된 로그(최근 1주일 권장)를 기반으로 분석
+            const report = await generateWeeklySafetyReport(filteredLogs);
+            setWeeklyReport(report);
+        } catch (e) {
+            console.error(e);
+            alert("주간 분석 중 오류가 발생했습니다.");
+        } finally {
+            setIsAnalyzingWeekly(false);
+        }
+    };
+
     return (
         <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-24">
             {/* Header */}
@@ -386,6 +405,48 @@ const HQDashboard: React.FC<HQDashboardProps> = ({ stores, onExit }) => {
                         {activeTab === 'overview' && (
                             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
                                 
+                                {/* AI Weekly Trend Analysis Card */}
+                                <div className="bg-indigo-900 text-white rounded-3xl p-6 shadow-xl overflow-hidden relative group">
+                                    <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 transition-transform">
+                                        <BrainCircuit size={120} />
+                                    </div>
+                                    <div className="relative z-10">
+                                        <div className="flex items-center gap-2 mb-4">
+                                            <div className="bg-white/20 p-2 rounded-xl">
+                                                <TrendingUp size={20} className="text-indigo-200" />
+                                            </div>
+                                            <h3 className="font-bold text-lg">AI 주간 안전 트렌드 리포트</h3>
+                                        </div>
+                                        
+                                        {weeklyReport ? (
+                                            <div className="space-y-4 animate-in fade-in duration-500">
+                                                <div className="text-sm leading-relaxed text-indigo-50 whitespace-pre-wrap bg-white/10 p-4 rounded-2xl border border-white/10 italic">
+                                                    {weeklyReport}
+                                                </div>
+                                                <button 
+                                                    onClick={handleGenerateWeeklyReport}
+                                                    disabled={isAnalyzingWeekly}
+                                                    className="text-xs font-bold text-indigo-300 hover:text-white flex items-center gap-1 transition-colors"
+                                                >
+                                                    <RefreshCw size={12} className={isAnalyzingWeekly ? "animate-spin" : ""} /> 리포트 다시 생성하기
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <div className="flex flex-col items-center py-4">
+                                                <p className="text-indigo-200 text-sm mb-6 text-center">최근 1주일간의 현장 데이터를 분석하여<br />전사 안전 트렌드와 권고 사항을 도출합니다.</p>
+                                                <button 
+                                                    onClick={handleGenerateWeeklyReport}
+                                                    disabled={isAnalyzingWeekly}
+                                                    className="bg-white text-indigo-900 px-8 py-3 rounded-2xl font-bold shadow-lg hover:bg-indigo-50 transition-all flex items-center gap-2 active:scale-95 disabled:opacity-50"
+                                                >
+                                                    {isAnalyzingWeekly ? <RefreshCw className="animate-spin" size={20} /> : <BrainCircuit size={20} />}
+                                                    {isAnalyzingWeekly ? "AI가 데이터 분석 중..." : "지금 트렌드 분석 시작"}
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
                                 {/* Totals KPIs */}
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                     <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-center items-center">
