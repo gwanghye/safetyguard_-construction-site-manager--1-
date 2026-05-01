@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { InspectionLog, Site, Role, RiskLevel } from '../types';
-import { X, Clock, AlertTriangle, CheckCircle2, ChevronRight, Ban, Hammer, ShieldAlert, FileText, Check, Maximize2, AlertCircle, Search } from 'lucide-react';
+import { X, Clock, AlertTriangle, CheckCircle2, ChevronRight, Ban, Hammer, ShieldAlert, FileText, Check, Maximize2, AlertCircle, Search, BrainCircuit } from 'lucide-react';
 
 interface HistoryTimelineProps {
     site: Site;
@@ -397,7 +397,13 @@ const HistoryTimeline: React.FC<HistoryTimelineProps> = ({ site, logs, onClose }
                                                     <div className="space-y-1.5">
                                                         <div className="text-[10px] font-bold text-red-500 text-center bg-red-50 py-0.5 rounded uppercase tracking-wider">Before (지적)</div>
                                                         <div className="aspect-square rounded-xl overflow-hidden border border-red-100 bg-white">
-                                                            <img src={selectedLog.photos[0]} className="w-full h-full object-cover" alt="before" onClick={() => setSelectedImage(selectedLog.photos[0])} />
+                                                            {selectedLog.photos && selectedLog.photos.length > 0 ? (
+                                                                <img src={selectedLog.photos[0]} className="w-full h-full object-cover" alt="before" onClick={() => setSelectedImage(selectedLog.photos[0])} />
+                                                            ) : (
+                                                                <div className="w-full h-full flex items-center justify-center bg-slate-50 text-slate-300">
+                                                                    <FileText size={16} />
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     </div>
                                                     <div className="space-y-1.5">
