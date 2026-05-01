@@ -7,7 +7,7 @@ import { VitePWA } from 'vite-plugin-pwa';
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, '.', '');
   return {
-    base: '/',
+    base: '/safetyguard_-construction-site-manager--1-/',
     server: {
       port: 3000,
       host: '0.0.0.0',
@@ -25,8 +25,8 @@ export default defineConfig(({ mode }) => {
           background_color: '#ffffff',
           display: 'standalone',
           orientation: 'portrait',
-          start_url: '/',
-          scope: '/',
+          start_url: '/safetyguard_-construction-site-manager--1-/',
+          scope: '/safetyguard_-construction-site-manager--1-/',
           icons: [
             {
               src: 'pwa-192x192.png',
