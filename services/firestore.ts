@@ -63,9 +63,7 @@ export const subscribeToLogs = (storeId: string, callback: (logs: InspectionLog[
 
     const q = query(
         collection(db, 'logs'),
-        where('storeId', '==', storeId),
-        orderBy('timestamp', 'desc'),
-        limit(100)
+        where('storeId', '==', storeId)
     );
 
     return onSnapshot(q, (snapshot) => {
@@ -74,10 +72,13 @@ export const subscribeToLogs = (storeId: string, callback: (logs: InspectionLog[
             ...doc.data()
         })) as InspectionLog[];
 
-        // Sort client-side to avoid Firestore composite index requirement
+        // 인덱스 에러 방지를 위해 정렬은 클라이언트에서 수행
         logs.sort((a, b) => b.timestamp - a.timestamp);
-
-        callback(logs);
+        
+        // 속도를 위해 최근 100건만 유지
+        callback(logs.slice(0, 100));
+    }, (error) => {
+        console.error("Error subscribing to store logs:", error);
     });
 };
 
@@ -149,9 +150,7 @@ export const subscribeToAllLogs = (callback: (logs: InspectionLog[]) => void) =>
     const ninetyDaysAgo = Date.now() - (90 * 24 * 60 * 60 * 1000);
     const q = query(
         collection(db, 'logs'),
-        where('timestamp', '>=', ninetyDaysAgo),
-        orderBy('timestamp', 'desc'),
-        limit(50)
+        where('timestamp', '>=', ninetyDaysAgo)
     );
     
     return onSnapshot(q, (snapshot) => {
@@ -159,14 +158,17 @@ export const subscribeToAllLogs = (callback: (logs: InspectionLog[]) => void) =>
             id: doc.id,
             ...doc.data()
         })) as InspectionLog[];
-        callback(logs);
+        
+        // 인덱스 없이도 작동하도록 클라이언트에서 정렬 및 제한
+        logs.sort((a, b) => b.timestamp - a.timestamp);
+        callback(logs.slice(0, 100));
     }, (error) => {
         console.error("Error subscribing to all logs:", error);
-        // 인덱스가 없는 경우 필터 없이 재시도 (안전 장치)
-        const fallbackQ = query(collection(db, 'logs'), orderBy('timestamp', 'desc'));
+        const fallbackQ = query(collection(db, 'logs'));
         onSnapshot(fallbackQ, (snapshot) => {
             const logs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as InspectionLog[];
-            callback(logs);
+            logs.sort((a, b) => b.timestamp - a.timestamp);
+            callback(logs.slice(0, 100));
         });
     });
 };
