@@ -43,8 +43,8 @@ const HistoryTimeline: React.FC<HistoryTimelineProps> = ({ site, logs, onClose }
     const facilityChecks = siteLogs.filter(l => l.inspectorRole === Role.FACILITY).length;
     const salesChecks = siteLogs.filter(l => l.inspectorRole === Role.SALES).length;
 
-    const getLogForDateAndRole = (dateStr: string, role: Role) => {
-        return siteLogs.find(l => formatDate(new Date(l.timestamp)) === dateStr && l.inspectorRole === role);
+    const getLogsForDateAndRole = (dateStr: string, role: Role) => {
+        return siteLogs.filter(l => formatDate(new Date(l.timestamp)) === dateStr && l.inspectorRole === role);
     };
 
     const scrollToDate = (dateStr: string) => {
@@ -108,9 +108,9 @@ const HistoryTimeline: React.FC<HistoryTimelineProps> = ({ site, logs, onClose }
                         <div className="px-4 py-3 overflow-x-auto no-scrollbar flex gap-2 items-center">
                             <span className="text-[10px] font-bold text-slate-400 whitespace-nowrap bg-slate-100 px-2 py-1 rounded">출석부 미니맵</span>
                             {dateList.map(date => {
-                                const fac = getLogForDateAndRole(date, Role.FACILITY);
-                                const saf = getLogForDateAndRole(date, Role.SAFETY);
-                                const sal = getLogForDateAndRole(date, Role.SALES);
+                                const facLogs = getLogsForDateAndRole(date, Role.FACILITY);
+                                const safLogs = getLogsForDateAndRole(date, Role.SAFETY);
+                                const salLogs = getLogsForDateAndRole(date, Role.SALES);
                                 return (
                                     <button 
                                         key={date} 
@@ -119,9 +119,9 @@ const HistoryTimeline: React.FC<HistoryTimelineProps> = ({ site, logs, onClose }
                                     >
                                         <div className="text-[9px] font-bold text-slate-500">{date.slice(5).replace('-','/')}</div>
                                         <div className="flex gap-0.5">
-                                            <div className={`w-2 h-2 rounded-full ${fac ? (fac.riskLevel === RiskLevel.WARNING ? 'bg-red-500' : 'bg-blue-500') : 'bg-slate-200'}`}></div>
-                                            <div className={`w-2 h-2 rounded-full ${saf ? (saf.riskLevel === RiskLevel.WARNING ? 'bg-red-500' : 'bg-emerald-500') : 'bg-slate-200'}`}></div>
-                                            <div className={`w-2 h-2 rounded-full ${sal ? (sal.riskLevel === RiskLevel.WARNING ? 'bg-red-500' : 'bg-purple-500') : 'bg-slate-200'}`}></div>
+                                            <div className={`w-2 h-2 rounded-full ${facLogs.length > 0 ? (facLogs.some(l => l.riskLevel === RiskLevel.WARNING) ? 'bg-red-500' : 'bg-blue-500') : 'bg-slate-200'}`}></div>
+                                            <div className={`w-2 h-2 rounded-full ${safLogs.length > 0 ? (safLogs.some(l => l.riskLevel === RiskLevel.WARNING) ? 'bg-red-500' : 'bg-emerald-500') : 'bg-slate-200'}`}></div>
+                                            <div className={`w-2 h-2 rounded-full ${salLogs.length > 0 ? (salLogs.some(l => l.riskLevel === RiskLevel.WARNING) ? 'bg-red-500' : 'bg-purple-500') : 'bg-slate-200'}`}></div>
                                         </div>
                                     </button>
                                 );
@@ -143,9 +143,9 @@ const HistoryTimeline: React.FC<HistoryTimelineProps> = ({ site, logs, onClose }
                             </div>
 
                             {dateList.map((date) => {
-                                const fac = getLogForDateAndRole(date, Role.FACILITY);
-                                const saf = getLogForDateAndRole(date, Role.SAFETY);
-                                const sal = getLogForDateAndRole(date, Role.SALES);
+                                const facLogs = getLogsForDateAndRole(date, Role.FACILITY);
+                                const safLogs = getLogsForDateAndRole(date, Role.SAFETY);
+                                const salLogs = getLogsForDateAndRole(date, Role.SALES);
 
                                 return (
                                     <div key={date} id={`timeline-${date}`} className="relative flex items-start group">
@@ -159,8 +159,8 @@ const HistoryTimeline: React.FC<HistoryTimelineProps> = ({ site, logs, onClose }
 
                                         {/* 3 Kanban Columns */}
                                         <div className="flex-1 grid grid-cols-3 gap-2 md:gap-4 pl-2 md:pl-0">
-                                            {[fac, saf, sal].map((log, idx) => {
-                                                if (!log) {
+                                            {[facLogs, safLogs, salLogs].map((logsArray, idx) => {
+                                                if (logsArray.length === 0) {
                                                     return (
                                                         <div key={idx} className="border border-dashed border-slate-200 rounded-xl bg-slate-50/50 flex flex-col items-center justify-center p-4 h-24 opacity-50">
                                                             <Ban size={16} className="text-slate-300 mb-1" />
@@ -169,34 +169,41 @@ const HistoryTimeline: React.FC<HistoryTimelineProps> = ({ site, logs, onClose }
                                                     );
                                                 }
                                                 return (
-                                                    <div 
-                                                        key={log.id} 
-                                                        onClick={() => setSelectedLog(log)}
-                                                        className={`rounded-xl border shadow-sm cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all bg-white
-                                                            ${selectedLog?.id === log.id ? 'ring-2 ring-indigo-500 border-indigo-500' : 'border-slate-200'}
-                                                        `}
-                                                    >
-                                                        <div className={`px-2 py-1.5 border-b text-[10px] font-bold flex justify-between items-center
-                                                            ${log.riskLevel === RiskLevel.WARNING ? 'bg-red-50 text-red-700 border-red-100' : log.riskLevel === RiskLevel.CAUTION ? 'bg-amber-50 text-amber-700 border-amber-100' : 'bg-slate-50 text-slate-700 border-slate-100'}
-                                                        `}>
-                                                            <span className="truncate">{log.inspector}</span>
-                                                            {log.riskLevel === RiskLevel.WARNING && <AlertTriangle size={12} className="animate-pulse" />}
-                                                        </div>
-                                                        <div className="p-2 md:p-3">
-                                                            {log.photos.length > 0 ? (
-                                                                <div className="h-16 bg-slate-100 rounded mb-2 overflow-hidden border border-slate-100 relative group-hover:opacity-90 transition-opacity">
-                                                                    <img src={log.photos[0]} className="w-full h-full object-cover" alt="thumb" />
-                                                                    {log.photos.length > 1 && (
-                                                                        <div className="absolute bottom-1 right-1 bg-black/50 text-white text-[8px] font-bold px-1 rounded">+{log.photos.length-1}</div>
-                                                                    )}
+                                                    <div key={idx} className="flex flex-col gap-2">
+                                                        {logsArray.map(log => (
+                                                            <div 
+                                                                key={log.id} 
+                                                                onClick={() => setSelectedLog(log)}
+                                                                className={`rounded-xl border shadow-sm cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all bg-white
+                                                                    ${selectedLog?.id === log.id ? 'ring-2 ring-indigo-500 border-indigo-500' : 'border-slate-200'}
+                                                                `}
+                                                            >
+                                                                <div className={`px-2 py-1.5 border-b text-[10px] font-bold flex justify-between items-center
+                                                                    ${log.riskLevel === RiskLevel.WARNING ? 'bg-red-50 text-red-700 border-red-100' : log.riskLevel === RiskLevel.CAUTION ? 'bg-amber-50 text-amber-700 border-amber-100' : 'bg-slate-50 text-slate-700 border-slate-100'}
+                                                                `}>
+                                                                    <span className="truncate">{log.inspector}</span>
+                                                                    <div className="flex items-center gap-1">
+                                                                        <span className="text-[8px] opacity-70">{new Date(log.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                                                                        {log.riskLevel === RiskLevel.WARNING && <AlertTriangle size={12} className="animate-pulse" />}
+                                                                    </div>
                                                                 </div>
-                                                            ) : (
-                                                                <div className="h-6 mb-1"></div>
-                                                            )}
-                                                            <div className="text-[10px] md:text-xs text-slate-600 line-clamp-2 md:line-clamp-3 leading-relaxed">
-                                                                {log.notes || "특이사항 없음"}
+                                                                <div className="p-2 md:p-3">
+                                                                    {log.photos.length > 0 ? (
+                                                                        <div className="h-16 bg-slate-100 rounded mb-2 overflow-hidden border border-slate-100 relative group-hover:opacity-90 transition-opacity">
+                                                                            <img src={log.photos[0]} className="w-full h-full object-cover" alt="thumb" />
+                                                                            {log.photos.length > 1 && (
+                                                                                <div className="absolute bottom-1 right-1 bg-black/50 text-white text-[8px] font-bold px-1 rounded">+{log.photos.length-1}</div>
+                                                                            )}
+                                                                        </div>
+                                                                    ) : (
+                                                                        <div className="h-6 mb-1"></div>
+                                                                    )}
+                                                                    <div className="text-[10px] md:text-xs text-slate-600 line-clamp-2 md:line-clamp-3 leading-relaxed">
+                                                                        {log.notes || "특이사항 없음"}
+                                                                    </div>
+                                                                </div>
                                                             </div>
-                                                        </div>
+                                                        ))}
                                                     </div>
                                                 );
                                             })}
@@ -214,14 +221,44 @@ const HistoryTimeline: React.FC<HistoryTimelineProps> = ({ site, logs, onClose }
                 `}>
                     {selectedLog ? (
                         <div className="h-full flex flex-col">
-                            <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-                                <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                                    <FileText className="text-indigo-500" size={18} />
-                                    점검 상세 리포트
-                                </h3>
-                                <button onClick={() => setSelectedLog(null)} className="p-1.5 bg-white rounded-full text-slate-400 hover:text-slate-800 shadow-sm border border-slate-200">
-                                    <X size={16} />
-                                </button>
+                            <div className="p-4 border-b border-slate-100 bg-slate-50">
+                                <div className="flex justify-between items-center mb-3">
+                                    <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                                        <FileText className="text-indigo-500" size={18} />
+                                        점검 상세 리포트
+                                    </h3>
+                                    <button onClick={() => setSelectedLog(null)} className="p-1.5 bg-white rounded-full text-slate-400 hover:text-slate-800 shadow-sm border border-slate-200">
+                                        <X size={16} />
+                                    </button>
+                                </div>
+
+                                {(() => {
+                                    const sameDayRoleLogs = siteLogs.filter(l => 
+                                        formatDate(new Date(l.timestamp)) === formatDate(new Date(selectedLog.timestamp)) && 
+                                        l.inspectorRole === selectedLog.inspectorRole
+                                    ).sort((a, b) => a.timestamp - b.timestamp);
+
+                                    if (sameDayRoleLogs.length > 1) {
+                                        return (
+                                            <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-1">
+                                                {sameDayRoleLogs.map((log, idx) => (
+                                                    <button
+                                                        key={log.id}
+                                                        onClick={() => setSelectedLog(log)}
+                                                        className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all whitespace-nowrap
+                                                            ${selectedLog.id === log.id 
+                                                                ? 'bg-indigo-600 text-white shadow-sm ring-2 ring-indigo-100' 
+                                                                : 'bg-white text-slate-500 border border-slate-200 hover:bg-slate-100'}
+                                                        `}
+                                                    >
+                                                        기록 {idx + 1} ({new Date(log.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})})
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        );
+                                    }
+                                    return null;
+                                })()}
                             </div>
 
                             <div className="flex-1 overflow-y-auto p-5 space-y-6">

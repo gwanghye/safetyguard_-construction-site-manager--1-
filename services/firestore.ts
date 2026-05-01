@@ -131,7 +131,8 @@ export const updateRiskAssessment = async (assessment: RiskAssessmentLog) => {
 // --- Global Services for HQ Dashboard ---
 
 export const subscribeToAllSites = (callback: (sites: Site[]) => void) => {
-    const q = query(collection(db, 'sites'));
+    // 공사 현장은 전체 리스트가 필요하므로 필터 없이 최신순 정렬만 추가
+    const q = query(collection(db, 'sites'), orderBy('startDate', 'desc'));
     return onSnapshot(q, (snapshot) => {
         const sites = snapshot.docs.map(doc => ({
             ...doc.data(),
@@ -142,25 +143,52 @@ export const subscribeToAllSites = (callback: (sites: Site[]) => void) => {
 };
 
 export const subscribeToAllLogs = (callback: (logs: InspectionLog[]) => void) => {
-    const q = query(collection(db, 'logs'));
+    // 성능 최적화: 본사 대시보드에서는 최근 90일치 로그만 기본으로 로드
+    const ninetyDaysAgo = Date.now() - (90 * 24 * 60 * 60 * 1000);
+    const q = query(
+        collection(db, 'logs'),
+        where('timestamp', '>=', ninetyDaysAgo),
+        orderBy('timestamp', 'desc')
+    );
+    
     return onSnapshot(q, (snapshot) => {
         const logs = snapshot.docs.map(doc => ({
             id: doc.id,
             ...doc.data()
         })) as InspectionLog[];
-        logs.sort((a, b) => b.timestamp - a.timestamp);
         callback(logs);
+    }, (error) => {
+        console.error("Error subscribing to all logs:", error);
+        // 인덱스가 없는 경우 필터 없이 재시도 (안전 장치)
+        const fallbackQ = query(collection(db, 'logs'), orderBy('timestamp', 'desc'));
+        onSnapshot(fallbackQ, (snapshot) => {
+            const logs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as InspectionLog[];
+            callback(logs);
+        });
     });
 };
 
 export const subscribeToAllRiskAssessments = (callback: (assessments: RiskAssessmentLog[]) => void) => {
-    const q = query(collection(db, 'riskAssessments'));
+    // 위험성평가도 최근 180일치만 기본 로드 (아카이브 제외)
+    const halfYearAgo = Date.now() - (180 * 24 * 60 * 60 * 1000);
+    const q = query(
+        collection(db, 'riskAssessments'),
+        where('timestamp', '>=', halfYearAgo),
+        orderBy('timestamp', 'desc')
+    );
+    
     return onSnapshot(q, (snapshot) => {
         const assessments = snapshot.docs.map(doc => ({
             id: doc.id,
             ...doc.data()
         })) as RiskAssessmentLog[];
-        assessments.sort((a, b) => b.timestamp - a.timestamp);
         callback(assessments);
+    }, (error) => {
+        console.error("Error subscribing to all assessments:", error);
+        const fallbackQ = query(collection(db, 'riskAssessments'), orderBy('timestamp', 'desc'));
+        onSnapshot(fallbackQ, (snapshot) => {
+            const assessments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as RiskAssessmentLog[];
+            callback(assessments);
+        });
     });
 };
