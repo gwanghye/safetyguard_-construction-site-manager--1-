@@ -49,7 +49,7 @@ export const sendAlimTalk = async (site: Site, missingRoles: Role[]): Promise<{ 
 
   const appUrl = "https://gwanghye.github.io/safetyguard_-construction-site-manager--1-/";
   const subject = `[현장 점검 안내]`;
-  const message = `[안전가드]\n${site.name} 현장 담당자님, 오늘 현장 안전 점검이 누락되었습니다.\n지금 바로 접속하여 일일 점검을 완료해 주세요!\n\n접속링크: ${appUrl}`;
+  const message = `[Safety Guard]\n${site.name} 현장 담당자님, 오늘 현장 안전 점검이 누락되었습니다.\n지금 바로 접속하여 일일 점검을 완료해 주세요!\n\n접속링크: ${appUrl}`;
 
   return await sendNiceSmsLms(receivers, subject, message);
 };
@@ -66,7 +66,7 @@ export const sendAssessmentRequestAlert = async (site: Site): Promise<{ success:
   }
 
   const subject = `[수시 위험성평가 안내]`;
-  const message = `[안전가드]\n${site.name} 현장 공사가 종료되었습니다. 수시 위험성평가를 작성해 주시기 바랍니다.`;
+  const message = `[Safety Guard]\n${site.name} 현장 공사가 종료되었습니다. 수시 위험성평가를 작성해 주시기 바랍니다.`;
 
   return await sendNiceSmsLms(receivers, subject, message);
 };
@@ -92,7 +92,7 @@ export const sendAssessmentApprovalAlert = async (roleName: string, site: Site):
   }
 
   const subject = `[수시위험성평가 결재 요청]`;
-  const message = `[안전가드]\n${site.name} 수시위험성평가 결재 요청\n${roleName} 단계\n접속링크: https://gwanghye.github.io/safetyguard_-construction-site-manager--1-/`;
+  const message = `[Safety Guard]\n${site.name} 수시위험성평가 결재 요청\n${roleName} 단계\n접속링크: https://gwanghye.github.io/safetyguard_-construction-site-manager--1-/`;
 
   return await sendNiceSmsLms(validReceivers, subject, message);
 };
