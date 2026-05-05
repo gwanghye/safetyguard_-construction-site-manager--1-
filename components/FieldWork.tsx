@@ -3,6 +3,7 @@ import { Site, InspectionLog, RiskLevel, Role } from '../types';
 import { Camera, CheckSquare, Upload, X, Maximize2, AlertTriangle, MapPin, Hammer, ShieldCheck } from 'lucide-react';
 import { analyzeSafetyPhoto } from '../services/aiService';
 import { compressImage } from '../utils/imageUtils';
+import { uploadMultipleImages } from '../services/storageService';
 
 interface FieldWorkProps {
     siteId: string | null;
@@ -23,6 +24,7 @@ const FieldWork: React.FC<FieldWorkProps> = ({ siteId, sites, currentRole, onSub
     });
     const [previewImage, setPreviewImage] = useState<string | null>(null);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     // Get Site Info
     const site = sites.find(s => s.id === siteId);
@@ -45,28 +47,47 @@ const FieldWork: React.FC<FieldWorkProps> = ({ siteId, sites, currentRole, onSub
                 const reader = new FileReader();
                 reader.readAsDataURL(file);
                 reader.onload = async (event) => {
-                    const originalBase64 = event.target?.result as string;
-                    const compressedBase64 = await compressImage(originalBase64);
-                    setPhotos(prev => [...prev, compressedBase64]);
+                    try {
+                        const originalBase64 = event.target?.result as string;
+                        const compressedBase64 = await compressImage(originalBase64);
+                        
+                        const isFirstPhoto = photos.length === 0;
+                        setPhotos(prev => [...prev, compressedBase64]);
 
-                    // Simple AI analysis for the first photo to suggest risk
-                    if (photos.length === 0) {
-                        const analysis = await analyzeSafetyPhoto(compressedBase64);
-                        if (analysis.risk === '경고') setRisk(RiskLevel.WARNING);
-                        if (analysis.risk === '주의') setRisk(RiskLevel.CAUTION);
-                        if (analysis.description && !notes) setNotes(analysis.description);
+                        // Simple AI analysis for the first photo to suggest risk
+                        if (isFirstPhoto) {
+                            const analysis = await analyzeSafetyPhoto(compressedBase64);
+                            
+                            // 함수형 업데이트를 통해 사용자가 그 사이 수정한 값을 덮어쓰지 않도록 보호
+                            setRisk(prevRisk => {
+                                if (prevRisk === RiskLevel.NORMAL) {
+                                    if (analysis.risk === '경고') return RiskLevel.WARNING;
+                                    if (analysis.risk === '주의') return RiskLevel.CAUTION;
+                                }
+                                return prevRisk;
+                            });
+                            
+                            setNotes(prevNotes => {
+                                if (!prevNotes && analysis.description) return analysis.description;
+                                return prevNotes;
+                            });
+                        }
+                    } catch (error) {
+                        console.error("Image processing error:", error);
+                        alert("이미지 처리 중 오류가 발생했습니다.");
+                    } finally {
+                        setIsAnalyzing(false); // 완료 후 분석 상태 해제
                     }
                 };
             } catch (error) {
-                console.error("Image processing error:", error);
-                alert("이미지 처리 중 오류가 발생했습니다.");
-            } finally {
+                console.error("File load error:", error);
+                alert("파일 읽기 중 오류가 발생했습니다.");
                 setIsAnalyzing(false);
             }
         }
     };
 
-    const handleSubmit = () => {
+    const handleSubmit = async () => {
         // 작업 내용 입력 검증은 안전팀에게만 적용
         if (currentRole === Role.SAFETY && !workType.trim()) {
             alert("금일 주요 진행 작업 내용을 입력해주세요.");
@@ -75,22 +96,30 @@ const FieldWork: React.FC<FieldWorkProps> = ({ siteId, sites, currentRole, onSub
 
         const inspectorName = currentRole === Role.FACILITY ? "시설 담당자" : currentRole === Role.SAFETY ? "안전관리" : "영업 관리자";
 
-        const newLog: Omit<InspectionLog, 'id'> = {
-            siteId: site.id,
-            siteName: site.name,
-            workType: workType, // 시설팀일 경우 빈 문자열로 전송됨
-            timestamp: Date.now(),
-            photos,
-            riskLevel: risk,
-            notes,
-            inspector: inspectorName,
-            inspectorRole: currentRole, // Save which team did this
-            checklist
-        };
+        setIsSubmitting(true);
+        try {
+            // Base64 이미지를 Firebase Storage에 업로드하고 다운로드 URL을 받음
+            const uploadedPhotoUrls = await uploadMultipleImages(photos, 'inspections');
 
-        onSubmitInspection(newLog);
-        alert("점검 결과가 저장되었습니다.");
-        onCancel(); // Return to main screen
+            const newLog: Omit<InspectionLog, 'id'> = {
+                siteId: site.id,
+                siteName: site.name,
+                workType: workType,
+                timestamp: Date.now(),
+                photos: uploadedPhotoUrls, // Base64 대신 URL 배열 사용
+                riskLevel: risk,
+                notes,
+                inspector: inspectorName,
+                inspectorRole: currentRole,
+                checklist
+            };
+            await onSubmitInspection(newLog);
+            alert("점검 결과가 저장되었습니다.");
+            onCancel(); // Return to main screen
+        } catch (e) {
+            // Error is already alerted in App.tsx
+            setIsSubmitting(false);
+        }
     };
 
     return (
@@ -234,10 +263,15 @@ const FieldWork: React.FC<FieldWorkProps> = ({ siteId, sites, currentRole, onSub
 
                 <button
                     onClick={handleSubmit}
-                    className={`w-full text-white py-4 rounded-xl font-bold text-lg shadow-lg active:scale-[0.98] transition-transform flex items-center justify-center gap-2 ${currentRole === Role.SAFETY ? 'bg-emerald-600 shadow-emerald-200' : currentRole === Role.SALES ? 'bg-purple-600 shadow-purple-200' : 'bg-blue-600 shadow-blue-200'}`}
+                    disabled={isAnalyzing || isSubmitting}
+                    className={`w-full text-white py-4 rounded-xl font-bold text-lg shadow-lg active:scale-[0.98] transition-transform flex items-center justify-center gap-2 ${currentRole === Role.SAFETY ? 'bg-emerald-600 shadow-emerald-200' : currentRole === Role.SALES ? 'bg-purple-600 shadow-purple-200' : 'bg-blue-600 shadow-blue-200'} disabled:opacity-50`}
                 >
-                    <ShieldCheck size={20} />
-                    {currentRole === Role.FACILITY ? '시설 점검 완료' : currentRole === Role.SAFETY ? '안전 점검 완료' : '영업 점검 완료'}
+                    {isSubmitting ? (
+                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    ) : (
+                        <ShieldCheck size={20} />
+                    )}
+                    {isSubmitting ? '저장 중...' : isAnalyzing ? 'AI 분석 중...' : currentRole === Role.FACILITY ? '시설 점검 완료' : currentRole === Role.SAFETY ? '안전 점검 완료' : '영업 점검 완료'}
                 </button>
             </div>
 

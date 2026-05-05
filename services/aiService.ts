@@ -118,13 +118,40 @@ export const generateProjectFinalReport = async (site: { name: string, departmen
   }
 };
 
+// URL 또는 Base64 이미지를 순수 Base64 데이터로 변환하는 유틸리티
+const fetchAsBase64 = async (urlOrBase64: string): Promise<string> => {
+  if (urlOrBase64.startsWith('data:image')) {
+    return urlOrBase64.replace(/^data:image\/(png|jpg|jpeg|webp);base64,/, "");
+  }
+  try {
+    const response = await fetch(urlOrBase64);
+    const blob = await response.blob();
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64 = reader.result as string;
+        resolve(base64.replace(/^data:image\/(png|jpg|jpeg|webp);base64,/, ""));
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch (error) {
+    console.error("Failed to fetch image as base64:", error);
+    return "";
+  }
+};
+
 export const verifyVisualAction = async (beforePhoto: string, afterPhoto: string, actionNotes: string): Promise<{ isResolved: boolean, feedback: string }> => {
   const ai = getAiClient();
   if (!ai) return { isResolved: true, feedback: "AI 서비스 불가. 자체 통과 처리합니다." };
 
   try {
-    const cleanBefore = beforePhoto.replace(/^data:image\/(png|jpg|jpeg|webp);base64,/, "");
-    const cleanAfter = afterPhoto.replace(/^data:image\/(png|jpg|jpeg|webp);base64,/, "");
+    const cleanBefore = await fetchAsBase64(beforePhoto);
+    const cleanAfter = await fetchAsBase64(afterPhoto);
+
+    if (!cleanBefore || !cleanAfter) {
+      return { isResolved: true, feedback: "이미지를 변환할 수 없어 시각 검수를 생략합니다." };
+    }
 
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',

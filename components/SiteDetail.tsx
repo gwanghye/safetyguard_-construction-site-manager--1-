@@ -3,6 +3,7 @@ import { Site, InspectionLog, Role, RiskLevel } from '../types';
 import { ArrowLeft, Plus, AlertTriangle, Hammer, Check, BrainCircuit, RefreshCw, X, FilePlus } from 'lucide-react';
 import { verifyVisualAction } from '../services/aiService';
 import { updateLog } from '../services/firestore';
+import { uploadMultipleImages } from '../services/storageService';
 
 import { compressImage } from '../utils/imageUtils';
 
@@ -52,36 +53,40 @@ const SiteDetail: React.FC<SiteDetailProps> = ({ site, logs, currentRole, onBack
         setIsSubmittingAction(true);
         const log = siteLogs.find(l => l.id === actionLogId);
         if (log) {
-            // [업그레이드] 텍스트가 아닌 사진 비교 판독을 호출
-            const { isResolved, feedback } = await verifyVisualAction(log.photos[0], actionPhotos[0], actionNotes);
-            
-            const updatedLog: InspectionLog = {
-                ...log,
-                action: {
-                    status: isResolved ? 'RESOLVED' : 'PENDING',
-                    actionNotes: actionNotes,
-                    resolvedAt: Date.now(),
-                    resolvedPhotos: actionPhotos,
-                    aiFeedback: feedback
-                }
-            };
+            try {
+                // Storage에 조치 사진 업로드
+                const uploadedActionPhotos = await uploadMultipleImages(actionPhotos, 'actions');
 
-            await updateLog(updatedLog);
-            if (!isResolved) {
-                alert(`AI 시각적 판독 결과 (조치 미흡):\n${feedback}\n\n*보완 후 다시 제출해주세요.`);
-            } else {
-                alert(`AI 시각적 판독 완료 (정상):\n${feedback}`);
+                // [업그레이드] 텍스트가 아닌 사진 비교 판독을 호출
+                // actionPhotos[0]는 아직 Base64이므로 AI API에 직접 전달 가능
+                const { isResolved, feedback } = await verifyVisualAction(log.photos[0], actionPhotos[0], actionNotes);
+                
+                const updatedLog: InspectionLog = {
+                    ...log,
+                    action: {
+                        status: isResolved ? 'RESOLVED' : 'PENDING',
+                        actionNotes: actionNotes,
+                        resolvedAt: Date.now(),
+                        resolvedPhotos: uploadedActionPhotos,
+                        aiFeedback: feedback
+                    }
+                };
+
+                await updateLog(updatedLog);
+                if (!isResolved) {
+                    alert(`AI 시각적 판독 결과 (조치 미흡):\n${feedback}\n\n*보완 후 다시 제출해주세요.`);
+                } else {
+                    alert(`AI 시각적 판독 완료 (정상):\n${feedback}`);
+                    setActionLogId(null);
+                    setActionNotes("");
+                    setActionPhotos([]);
+                }
+            } catch (error) {
+                console.error("Error during corrective action:", error);
+                alert("조치 등록 중 오류가 발생했습니다.");
             }
         }
         setIsSubmittingAction(false);
-        if (actionLogId) {
-             const result = siteLogs.find(l => l.id === actionLogId)?.action?.status === 'RESOLVED';
-             if (result) {
-                setActionLogId(null);
-                setActionNotes("");
-                setActionPhotos([]);
-             }
-        }
     };
 
     return (

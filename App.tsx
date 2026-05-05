@@ -185,7 +185,8 @@ const App: React.FC = () => {
       setScannedSiteId(null);
     } catch (error) {
       console.error("Error adding log:", error);
-      alert("일지 등록 중 오류가 발생했습니다.");
+      alert("일지 등록 중 오류가 발생했습니다. (네트워크 불안정 또는 용량 초과)");
+      throw error; // 에러를 상위(FieldWork)로 던져서 모달이 닫히지 않게 함
     }
   };
 

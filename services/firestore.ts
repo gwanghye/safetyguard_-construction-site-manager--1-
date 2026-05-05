@@ -132,7 +132,7 @@ export const updateRiskAssessment = async (assessment: RiskAssessmentLog) => {
 // --- Global Services for HQ Dashboard ---
 
 export const subscribeToAllSites = (callback: (sites: Site[]) => void) => {
-    // 공사 현장은 전체 리스트가 필요하므로 필터 없이 최신순 정렬만 추가
+    // 공사 현장은 전체 리스트가 필요하므로 최신순 정렬 (인덱스 없을 시 Fallback 추가)
     const q = query(collection(db, 'sites'), orderBy('startDate', 'desc'));
     return onSnapshot(q, (snapshot) => {
         const sites = snapshot.docs.map(doc => ({
@@ -140,11 +140,20 @@ export const subscribeToAllSites = (callback: (sites: Site[]) => void) => {
             id: doc.id
         })) as Site[];
         callback(sites);
+    }, (error) => {
+        console.error("Error subscribing to all sites (Index missing):", error);
+        // 인덱스 에러 시 단순 쿼리로 조회 후 클라이언트에서 직접 정렬
+        const fallbackQ = query(collection(db, 'sites'));
+        onSnapshot(fallbackQ, (snapshot) => {
+            const sites = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Site[];
+            sites.sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
+            callback(sites);
+        });
     });
 };
 
 export const subscribeToAllLogs = (callback: (logs: InspectionLog[]) => void) => {
-    // 본사 대시보드도 최근 1년치 정도로 범위를 넓혀서 충분히 조회 가능하게 수정
+    // 스토리지 도입으로 데이터 용량이 감소하여 1년치 조회가 가능해졌습니다.
     const oneYearAgo = Date.now() - (365 * 24 * 60 * 60 * 1000);
     const q = query(
         collection(db, 'logs'),

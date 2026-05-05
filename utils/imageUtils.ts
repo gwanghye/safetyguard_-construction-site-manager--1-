@@ -5,7 +5,7 @@
  * @param maxWidth 최대 가로 폭 (픽셀)
  * @param quality 화질 (0~1)
  */
-export const compressImage = (base64Str: string, maxWidth: number = 800, quality: number = 0.7): Promise<string> => {
+export const compressImage = (base64Str: string, maxWidth: number = 600, quality: number = 0.6): Promise<string> => {
     return new Promise((resolve) => {
         const img = new Image();
         img.src = base64Str;
