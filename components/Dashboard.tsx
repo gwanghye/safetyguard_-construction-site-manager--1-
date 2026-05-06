@@ -27,6 +27,7 @@ const Dashboard: React.FC<DashboardProps> = ({ logs, sites, assessments, onAddSi
     const [isEditing, setIsEditing] = useState(false);
 
     const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+    const [deleteInput, setDeleteInput] = useState("");
 
     const [actionLogId, setActionLogId] = useState<string | null>(null);
     const [actionNotes, setActionNotes] = useState("");
@@ -120,6 +121,7 @@ const Dashboard: React.FC<DashboardProps> = ({ logs, sites, assessments, onAddSi
 
     const handleDeleteClick = (siteId: string) => {
         setDeleteTargetId(siteId);
+        setDeleteInput("");
     };
 
     const confirmDelete = () => {
@@ -898,13 +900,23 @@ const Dashboard: React.FC<DashboardProps> = ({ logs, sites, assessments, onAddSi
 
             {deleteTargetId && (
                 <div className="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center p-4">
-                    <div className="bg-white w-full max-w-sm rounded-2xl p-6 text-center">
+                    <div className="bg-white w-full max-w-sm rounded-2xl p-6 text-center shadow-2xl">
                         <AlertTriangle size={24} className="text-red-500 mx-auto mb-4" />
-                        <h3 className="text-lg font-bold">삭제 확인</h3>
-                        <p className="text-slate-500 text-sm mb-6 mt-2">이 현장과 연락처 데이터를 모두 삭제하시겠습니까?</p>
+                        <h3 className="text-lg font-bold text-slate-800">삭제 확인</h3>
+                        <p className="text-slate-500 text-sm mb-4 mt-2 leading-relaxed">
+                            이 현장 데이터를 정말로 삭제하시겠습니까?<br/>
+                            실수로 지우는 것을 방지하기 위해 아래에 <strong>삭제</strong> 라고 입력해주세요.
+                        </p>
+                        <input 
+                            type="text" 
+                            value={deleteInput}
+                            onChange={(e) => setDeleteInput(e.target.value)}
+                            placeholder="'삭제' 입력"
+                            className="w-full p-3 mb-6 border border-slate-200 rounded-xl text-center font-bold text-slate-700 focus:ring-2 focus:ring-red-500 outline-none"
+                        />
                         <div className="flex gap-3">
-                            <button onClick={() => setDeleteTargetId(null)} className="flex-1 py-3 bg-slate-100 rounded-xl font-bold">취소</button>
-                            <button onClick={confirmDelete} className="flex-1 py-3 bg-red-600 text-white rounded-xl font-bold">삭제</button>
+                            <button onClick={() => setDeleteTargetId(null)} className="flex-1 py-3 bg-slate-100 text-slate-700 rounded-xl font-bold hover:bg-slate-200 transition-colors">취소</button>
+                            <button onClick={confirmDelete} disabled={deleteInput !== '삭제'} className="flex-1 py-3 bg-red-600 text-white rounded-xl font-bold disabled:opacity-30 disabled:cursor-not-allowed transition-all">삭제</button>
                         </div>
                     </div>
                 </div>

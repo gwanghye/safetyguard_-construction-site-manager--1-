@@ -14,5 +14,5 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
-export const functions = getFunctions(app); // 백엔드 배포 기본 리전(us-central1)과 일치하도록 수정
+export const functions = getFunctions(app, "asia-northeast3");
 export const storage = getStorage(app);
