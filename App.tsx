@@ -105,6 +105,71 @@ const App: React.FC = () => {
     }
   }, [activeStore]);
 
+  // --- Offline Background Sync ---
+  useEffect(() => {
+    const handleOnline = async () => {
+      const { getOfflineActions, removeOfflineAction } = await import('./services/offlineSync');
+      const { uploadMultipleImages } = await import('./services/storageService');
+      const { addLog, updateLog } = await import('./services/firestore');
+
+      const offlineActions = getOfflineActions();
+      if (offlineActions.length > 0) {
+        console.log(`[Offline Sync] Found ${offlineActions.length} offline actions to sync.`);
+        // Background notification to user is optional, but a non-blocking toast would be nice.
+        
+        for (const action of offlineActions) {
+          try {
+            if (action.type === 'ADD_LOG') {
+              const logData = action.payload;
+              if (logData.photos && logData.photos.length > 0) {
+                 logData.photos = await uploadMultipleImages(logData.photos, 'inspections');
+              }
+              await addLog(logData);
+              removeOfflineAction(action.id);
+            } else if (action.type === 'UPDATE_LOG') {
+              const { logId, actionPhotos, actionNotes } = action.payload;
+              let uploadedActionPhotos: string[] = [];
+              if (actionPhotos && actionPhotos.length > 0) {
+                 uploadedActionPhotos = await uploadMultipleImages(actionPhotos, 'actions');
+              }
+              
+              // Find the local log to update
+              const log = logs.find(l => l.id === logId);
+              if (log) {
+                 // Offline sync bypasses AI check as it might take long and fail, we assume pending review later or resolved
+                 const updatedLog = {
+                    ...log,
+                    action: {
+                        status: 'RESOLVED' as const,
+                        actionNotes: actionNotes,
+                        resolvedAt: Date.now(),
+                        resolvedPhotos: uploadedActionPhotos,
+                        aiFeedback: "오프라인 모드에서 제출됨 (AI 시각 검증 생략)"
+                    }
+                 };
+                 await updateLog(updatedLog);
+              }
+              removeOfflineAction(action.id);
+            }
+          } catch (err) {
+            console.error(`[Offline Sync] Failed to sync action ${action.id}`, err);
+            // If it fails, leave it in the queue for the next 'online' event
+          }
+        }
+      }
+    };
+
+    window.addEventListener('online', handleOnline);
+    // Component mount check just in case we started online with pending actions
+    if (navigator.onLine) {
+        handleOnline();
+    }
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+    };
+  }, [logs]); // Dependency on logs so UPDATE_LOG can find the target log
+
   // --- 1. Global App Unlock Handler ---
   const handleEntryCodeSubmit = (e: React.FormEvent) => {
     e.preventDefault();

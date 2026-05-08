@@ -88,7 +88,6 @@ const FieldWork: React.FC<FieldWorkProps> = ({ siteId, sites, currentRole, onSub
     };
 
     const handleSubmit = async () => {
-        // 작업 내용 입력 검증은 안전팀에게만 적용
         if (currentRole === Role.SAFETY && !workType.trim()) {
             alert("금일 주요 진행 작업 내용을 입력해주세요.");
             return;
@@ -98,7 +97,29 @@ const FieldWork: React.FC<FieldWorkProps> = ({ siteId, sites, currentRole, onSub
 
         setIsSubmitting(true);
         try {
-            // Base64 이미지를 Firebase Storage에 업로드하고 다운로드 URL을 받음
+            if (!navigator.onLine) {
+                const { saveOfflineAction } = await import('../services/offlineSync');
+                const offlineLog = {
+                    siteId: site.id,
+                    siteName: site.name,
+                    workType: workType,
+                    timestamp: Date.now(),
+                    photos: photos, // Base64로 오프라인 보관
+                    riskLevel: risk,
+                    notes,
+                    inspector: inspectorName,
+                    inspectorRole: currentRole,
+                    checklist
+                };
+                saveOfflineAction({
+                    type: 'ADD_LOG',
+                    payload: offlineLog
+                });
+                alert("인터넷이 끊겨 있습니다! 오프라인 모드로 임시 저장되었으며, 연결 시 자동 전송됩니다.");
+                onCancel();
+                return;
+            }
+
             const uploadedPhotoUrls = await uploadMultipleImages(photos, 'inspections');
 
             const newLog: Omit<InspectionLog, 'id'> = {
@@ -106,7 +127,7 @@ const FieldWork: React.FC<FieldWorkProps> = ({ siteId, sites, currentRole, onSub
                 siteName: site.name,
                 workType: workType,
                 timestamp: Date.now(),
-                photos: uploadedPhotoUrls, // Base64 대신 URL 배열 사용
+                photos: uploadedPhotoUrls,
                 riskLevel: risk,
                 notes,
                 inspector: inspectorName,
@@ -115,9 +136,8 @@ const FieldWork: React.FC<FieldWorkProps> = ({ siteId, sites, currentRole, onSub
             };
             await onSubmitInspection(newLog);
             alert("점검 결과가 저장되었습니다.");
-            onCancel(); // Return to main screen
+            onCancel(); 
         } catch (e) {
-            // Error is already alerted in App.tsx
             setIsSubmitting(false);
         }
     };

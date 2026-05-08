@@ -334,3 +334,4 @@ ${logsData}
     throw new HttpsError('internal', error.message);
   }
 });
+

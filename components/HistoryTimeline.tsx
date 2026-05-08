@@ -1,6 +1,8 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { InspectionLog, Site, Role, RiskLevel } from '../types';
 import { X, Clock, AlertTriangle, CheckCircle2, ChevronRight, Ban, Hammer, ShieldAlert, FileText, Check, Maximize2, AlertCircle, Search, BrainCircuit } from 'lucide-react';
+import ImageWithSkeleton from './ImageWithSkeleton';
+import ImageModal from './ImageModal';
 
 interface HistoryTimelineProps {
     site: Site;
@@ -13,6 +15,7 @@ const HistoryTimeline: React.FC<HistoryTimelineProps> = ({ site, logs, onClose }
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [filterMode, setFilterMode] = useState<'ALL' | 'WARNING' | 'CAUTION' | 'PENDING'>('ALL');
+    const [visibleDays, setVisibleDays] = useState(7);
     const timelineRef = useRef<HTMLDivElement>(null);
 
     const siteLogs = logs.filter(l => l.siteId === site.id);
@@ -72,6 +75,16 @@ const HistoryTimeline: React.FC<HistoryTimelineProps> = ({ site, logs, onClose }
             });
         }
     };
+
+    const handleScroll = useCallback(() => {
+        if (!timelineRef.current) return;
+        const { scrollTop, scrollHeight, clientHeight } = timelineRef.current;
+        if (scrollHeight - scrollTop <= clientHeight + 150) {
+            setVisibleDays(prev => Math.min(prev + 7, dateList.length));
+        }
+    }, [dateList.length]);
+
+    const visibleDateList = dateList.slice(0, visibleDays);
 
     return (
         <div className="fixed inset-0 z-[70] bg-slate-100 flex flex-col animate-in fade-in zoom-in-95 duration-200 overflow-hidden">
@@ -169,7 +182,7 @@ const HistoryTimeline: React.FC<HistoryTimelineProps> = ({ site, logs, onClose }
                     </div>
 
                     {/* Vertical Timeline Body */}
-                    <div ref={timelineRef} className="flex-1 overflow-y-auto p-4 md:p-8 scroll-smooth relative">
+                    <div ref={timelineRef} onScroll={handleScroll} className="flex-1 overflow-y-auto p-4 md:p-8 scroll-smooth relative">
                         {/* Center Timeline Line */}
                         <div className="absolute left-8 md:left-[88px] top-0 bottom-0 w-0.5 bg-indigo-100"></div>
 
@@ -181,7 +194,7 @@ const HistoryTimeline: React.FC<HistoryTimelineProps> = ({ site, logs, onClose }
                                 <div className="bg-purple-100 text-purple-700 text-xs font-bold py-1.5 rounded text-center shadow-sm">영업 점검</div>
                             </div>
 
-                            {dateList.map((date) => {
+                            {visibleDateList.map((date) => {
                                 const facLogs = getLogsForDateAndRole(date, Role.FACILITY);
                                 const safLogs = getLogsForDateAndRole(date, Role.SAFETY);
                                 const salLogs = getLogsForDateAndRole(date, Role.SALES);
@@ -228,10 +241,10 @@ const HistoryTimeline: React.FC<HistoryTimelineProps> = ({ site, logs, onClose }
                                                                 </div>
                                                                 <div className="p-2 md:p-3">
                                                                     {log.photos.length > 0 ? (
-                                                                        <div className="h-16 bg-slate-100 rounded mb-2 overflow-hidden border border-slate-100 relative group-hover:opacity-90 transition-opacity">
-                                                                            <img src={log.photos[0]} className="w-full h-full object-cover" alt="thumb" />
+                                                                        <div className="h-16 bg-slate-100 rounded mb-2 border border-slate-100 relative group-hover:opacity-90 transition-opacity">
+                                                                            <ImageWithSkeleton src={log.photos[0]} containerClassName="w-full h-full rounded" className="w-full h-full object-cover" alt="thumb" />
                                                                             {log.photos.length > 1 && (
-                                                                                <div className="absolute bottom-1 right-1 bg-black/50 text-white text-[8px] font-bold px-1 rounded">+{log.photos.length-1}</div>
+                                                                                <div className="absolute bottom-1 right-1 bg-black/50 text-white text-[8px] font-bold px-1 rounded z-10">+{log.photos.length-1}</div>
                                                                             )}
                                                                         </div>
                                                                     ) : (
@@ -367,9 +380,9 @@ const HistoryTimeline: React.FC<HistoryTimelineProps> = ({ site, logs, onClose }
                                         <div className="text-xs font-bold text-slate-500 mb-1.5 flex items-center gap-1">현장 사진 ({selectedLog.photos.length}장)</div>
                                         <div className="grid grid-cols-2 gap-2">
                                             {selectedLog.photos.map((photo, idx) => (
-                                                <button key={idx} onClick={() => setSelectedImage(photo)} className="aspect-square rounded-xl overflow-hidden border border-slate-200 relative group bg-slate-100">
-                                                    <img src={photo} className="w-full h-full object-cover transition-transform group-hover:scale-105" alt="" />
-                                                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                                                <button key={idx} onClick={() => setSelectedImage(photo)} className="aspect-square rounded-xl border border-slate-200 relative group bg-slate-100 p-0 overflow-hidden">
+                                                    <ImageWithSkeleton src={photo} containerClassName="w-full h-full" className="w-full h-full object-cover transition-transform group-hover:scale-105" alt="" />
+                                                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center z-10">
                                                         <Maximize2 className="text-white opacity-0 group-hover:opacity-100" size={20} />
                                                     </div>
                                                 </button>
@@ -397,9 +410,9 @@ const HistoryTimeline: React.FC<HistoryTimelineProps> = ({ site, logs, onClose }
                                                 <div className="grid grid-cols-2 gap-3">
                                                     <div className="space-y-1.5">
                                                         <div className="text-[10px] font-bold text-red-500 text-center bg-red-50 py-0.5 rounded uppercase tracking-wider">Before (지적)</div>
-                                                        <div className="aspect-square rounded-xl overflow-hidden border border-red-100 bg-white">
+                                                        <div className="aspect-square rounded-xl border border-red-100 bg-white cursor-pointer overflow-hidden" onClick={() => setSelectedImage(selectedLog.photos[0])}>
                                                             {selectedLog.photos && selectedLog.photos.length > 0 ? (
-                                                                <img src={selectedLog.photos[0]} className="w-full h-full object-cover" alt="before" onClick={() => setSelectedImage(selectedLog.photos[0])} />
+                                                                <ImageWithSkeleton src={selectedLog.photos[0]} containerClassName="w-full h-full" className="w-full h-full object-cover hover:scale-105 transition-transform" alt="before" />
                                                             ) : (
                                                                 <div className="w-full h-full flex items-center justify-center bg-slate-50 text-slate-300">
                                                                     <FileText size={16} />
@@ -409,12 +422,12 @@ const HistoryTimeline: React.FC<HistoryTimelineProps> = ({ site, logs, onClose }
                                                     </div>
                                                     <div className="space-y-1.5">
                                                         <div className="text-[10px] font-bold text-emerald-600 text-center bg-emerald-50 py-0.5 rounded uppercase tracking-wider">After (조치)</div>
-                                                        <div className="aspect-square rounded-xl overflow-hidden border border-emerald-100 bg-white relative group">
+                                                        <div className="aspect-square rounded-xl border border-emerald-100 bg-white relative group cursor-pointer overflow-hidden" onClick={() => setSelectedImage(selectedLog.action!.resolvedPhotos![0])}>
                                                             {selectedLog.action.resolvedPhotos && selectedLog.action.resolvedPhotos.length > 0 ? (
                                                                 <>
-                                                                    <img src={selectedLog.action.resolvedPhotos[0]} className="w-full h-full object-cover" alt="after" onClick={() => setSelectedImage(selectedLog.action.resolvedPhotos![0])} />
+                                                                    <ImageWithSkeleton src={selectedLog.action.resolvedPhotos[0]} containerClassName="w-full h-full" className="w-full h-full object-cover hover:scale-105 transition-transform" alt="after" />
                                                                     {selectedLog.action.resolvedPhotos.length > 1 && (
-                                                                        <div className="absolute bottom-1 right-1 bg-black/60 text-white text-[8px] px-1.5 py-0.5 rounded font-bold">+{selectedLog.action.resolvedPhotos.length - 1}</div>
+                                                                        <div className="absolute bottom-1 right-1 bg-black/60 text-white text-[8px] px-1.5 py-0.5 rounded font-bold z-10">+{selectedLog.action.resolvedPhotos.length - 1}</div>
                                                                     )}
                                                                 </>
                                                             ) : (
@@ -460,14 +473,9 @@ const HistoryTimeline: React.FC<HistoryTimelineProps> = ({ site, logs, onClose }
 
             </div>
 
-            {/* 이미지 전체 화면 */}
+            {/* 이미지 전체 화면 (줌 지원) */}
             {selectedImage && (
-                <div className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center p-4 animate-in fade-in" onClick={() => setSelectedImage(null)}>
-                    <img src={selectedImage} className="max-w-full max-h-[90vh] rounded-lg shadow-2xl" alt="Full size" />
-                    <button className="absolute top-6 right-6 text-white bg-black/50 p-2 rounded-full hover:bg-black/80">
-                        <X size={24} />
-                    </button>
-                </div>
+                <ImageModal imageUrl={selectedImage} onClose={() => setSelectedImage(null)} />
             )}
         </div>
     );

@@ -54,6 +54,24 @@ const SiteDetail: React.FC<SiteDetailProps> = ({ site, logs, currentRole, onBack
         const log = siteLogs.find(l => l.id === actionLogId);
         if (log) {
             try {
+                if (!navigator.onLine) {
+                    const { saveOfflineAction } = await import('../services/offlineSync');
+                    saveOfflineAction({
+                        type: 'UPDATE_LOG',
+                        payload: {
+                            logId: log.id,
+                            actionPhotos: actionPhotos,
+                            actionNotes: actionNotes
+                        }
+                    });
+                    alert("인터넷이 끊겨 있습니다! 오프라인 모드로 임시 저장되었으며, 연결 시 자동 전송됩니다.");
+                    setActionLogId(null);
+                    setActionNotes("");
+                    setActionPhotos([]);
+                    setIsSubmittingAction(false);
+                    return;
+                }
+
                 // Storage에 조치 사진 업로드
                 const uploadedActionPhotos = await uploadMultipleImages(actionPhotos, 'actions');
 
