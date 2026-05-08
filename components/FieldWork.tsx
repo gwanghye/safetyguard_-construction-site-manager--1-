@@ -2,8 +2,12 @@ import React, { useState } from 'react';
 import { Site, InspectionLog, RiskLevel, Role } from '../types';
 import { Camera, CheckSquare, Upload, X, Maximize2, AlertTriangle, MapPin, Hammer, ShieldCheck } from 'lucide-react';
 import { analyzeSafetyPhoto } from '../services/aiService';
-import { compressImage } from '../utils/imageUtils';
 import { uploadMultipleImages } from '../services/storageService';
+import { useSwipe } from '../hooks/useSwipe';
+import { useRef } from 'react';
+import VoiceInputButton from './VoiceInputButton';
+import { hapticLight, hapticSuccess } from '../utils/haptics';
+import ImageModal from './ImageModal';
 
 interface FieldWorkProps {
     siteId: string | null;
@@ -25,6 +29,12 @@ const FieldWork: React.FC<FieldWorkProps> = ({ siteId, sites, currentRole, onSub
     const [previewImage, setPreviewImage] = useState<string | null>(null);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const containerRef = useRef<HTMLDivElement>(null);
+
+    useSwipe(containerRef, {
+        onSwipeRight: onCancel,
+        edgeSwipeOnly: true
+    });
 
     // Get Site Info
     const site = sites.find(s => s.id === siteId);
@@ -135,6 +145,7 @@ const FieldWork: React.FC<FieldWorkProps> = ({ siteId, sites, currentRole, onSub
                 checklist
             };
             await onSubmitInspection(newLog);
+            hapticSuccess();
             alert("점검 결과가 저장되었습니다.");
             onCancel(); 
         } catch (e) {
@@ -143,7 +154,7 @@ const FieldWork: React.FC<FieldWorkProps> = ({ siteId, sites, currentRole, onSub
     };
 
     return (
-        <div className="px-4 py-6 animate-in slide-in-from-bottom-4 pb-24">
+        <div ref={containerRef} className="px-4 py-6 animate-in slide-in-from-bottom-4 pb-24 h-full overflow-y-auto">
             {/* Header Info */}
             <div className={`text-white p-5 rounded-2xl shadow-lg mb-6 ${currentRole === Role.SAFETY ? 'bg-emerald-800' : currentRole === Role.SALES ? 'bg-purple-900' : 'bg-slate-900'}`}>
                 <div className="flex items-center justify-between">
@@ -172,13 +183,16 @@ const FieldWork: React.FC<FieldWorkProps> = ({ siteId, sites, currentRole, onSub
                             <Hammer className="w-5 h-5 text-indigo-500" />
                             금일 주요 진행 작업
                         </h3>
-                        <input
-                            type="text"
-                            value={workType}
-                            onChange={(e) => setWorkType(e.target.value)}
-                            placeholder="예: 천장 텍스 교체, 배관 용접, 페인트 도장 등"
-                            className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500 outline-none font-medium"
-                        />
+                        <div className="flex gap-2">
+                            <input
+                                type="text"
+                                value={workType}
+                                onChange={(e) => setWorkType(e.target.value)}
+                                placeholder="예: 천장 텍스 교체, 배관 용접, 페인트 도장 등"
+                                className="flex-1 p-4 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500 outline-none font-medium"
+                            />
+                            <VoiceInputButton onResult={(text) => { hapticLight(); setWorkType(prev => prev ? `${prev} ${text}` : text); }} className="h-auto px-4" />
+                        </div>
                     </div>
                 )}
 
@@ -202,7 +216,10 @@ const FieldWork: React.FC<FieldWorkProps> = ({ siteId, sites, currentRole, onSub
                                 <input
                                     type="checkbox"
                                     checked={checklist[item.key as keyof typeof checklist]}
-                                    onChange={() => setChecklist(prev => ({ ...prev, [item.key]: !prev[item.key as keyof typeof checklist] }))}
+                                    onChange={() => {
+                                        hapticLight();
+                                        setChecklist(prev => ({ ...prev, [item.key]: !prev[item.key as keyof typeof checklist] }));
+                                    }}
                                     className="hidden"
                                 />
                                 <span className="text-slate-700 text-sm font-medium">{item.label}</span>
@@ -260,7 +277,7 @@ const FieldWork: React.FC<FieldWorkProps> = ({ siteId, sites, currentRole, onSub
                         {[RiskLevel.NORMAL, RiskLevel.CAUTION, RiskLevel.WARNING].map((lvl) => (
                             <button
                                 key={lvl}
-                                onClick={() => setRisk(lvl)}
+                                onClick={() => { hapticLight(); setRisk(lvl); }}
                                 className={`flex-1 py-3 rounded-lg text-sm font-bold transition-all shadow-sm
                             ${risk === lvl && lvl === RiskLevel.NORMAL ? 'bg-green-500 text-white ring-2 ring-green-600 ring-offset-2' : ''}
                             ${risk === lvl && lvl === RiskLevel.CAUTION ? 'bg-amber-500 text-white ring-2 ring-amber-600 ring-offset-2' : ''}
@@ -273,16 +290,22 @@ const FieldWork: React.FC<FieldWorkProps> = ({ siteId, sites, currentRole, onSub
                         ))}
                     </div>
 
-                    <textarea
-                        value={notes}
-                        onChange={(e) => setNotes(e.target.value)}
-                        placeholder="현장 특이사항이나 조치가 필요한 사항을 입력하세요..."
-                        className="w-full p-4 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none min-h-[100px] resize-none"
-                    ></textarea>
+                    <div className="relative">
+                        <textarea
+                            value={notes}
+                            onChange={(e) => setNotes(e.target.value)}
+                            placeholder="현장 특이사항이나 조치가 필요한 사항을 입력하세요..."
+                            className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none font-medium min-h-[120px] resize-none"
+                        ></textarea>
+                        <VoiceInputButton 
+                            onResult={(text) => { hapticLight(); setNotes(prev => prev ? `${prev} ${text}` : text); }} 
+                            className="absolute bottom-3 right-3" 
+                        />
+                    </div>
                 </div>
 
                 <button
-                    onClick={handleSubmit}
+                    onClick={() => { hapticMedium(); handleSubmit(); }}
                     disabled={isAnalyzing || isSubmitting}
                     className={`w-full text-white py-4 rounded-xl font-bold text-lg shadow-lg active:scale-[0.98] transition-transform flex items-center justify-center gap-2 ${currentRole === Role.SAFETY ? 'bg-emerald-600 shadow-emerald-200' : currentRole === Role.SALES ? 'bg-purple-600 shadow-purple-200' : 'bg-blue-600 shadow-blue-200'} disabled:opacity-50`}
                 >
@@ -295,12 +318,13 @@ const FieldWork: React.FC<FieldWorkProps> = ({ siteId, sites, currentRole, onSub
                 </button>
             </div>
 
-            {/* Image Preview Modal */}
+            {/* Image Preview Modal (줌 및 스와이프 지원) */}
             {previewImage && (
-                <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4" onClick={() => setPreviewImage(null)}>
-                    <button className="absolute top-4 right-4 text-white p-2"><X size={24} /></button>
-                    <img src={previewImage} className="max-w-full max-h-full rounded" alt="Preview" />
-                </div>
+                <ImageModal 
+                    imageUrls={photos} 
+                    initialIndex={photos.indexOf(previewImage)} 
+                    onClose={() => setPreviewImage(null)} 
+                />
             )}
         </div>
     );

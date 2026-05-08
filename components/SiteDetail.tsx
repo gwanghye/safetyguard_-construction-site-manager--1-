@@ -2,10 +2,13 @@ import React, { useState } from 'react';
 import { Site, InspectionLog, Role, RiskLevel } from '../types';
 import { ArrowLeft, Plus, AlertTriangle, Hammer, Check, BrainCircuit, RefreshCw, X, FilePlus } from 'lucide-react';
 import { verifyVisualAction } from '../services/aiService';
-import { updateLog } from '../services/firestore';
 import { uploadMultipleImages } from '../services/storageService';
+import VoiceInputButton from './VoiceInputButton';
+import { hapticLight, hapticMedium, hapticSuccess } from '../utils/haptics';
 
 import { compressImage } from '../utils/imageUtils';
+import { useSwipe } from '../hooks/useSwipe';
+import { useRef } from 'react';
 
 interface SiteDetailProps {
     site: Site;
@@ -21,6 +24,12 @@ const SiteDetail: React.FC<SiteDetailProps> = ({ site, logs, currentRole, onBack
     const [actionNotes, setActionNotes] = useState("");
     const [actionPhotos, setActionPhotos] = useState<string[]>([]);
     const [isSubmittingAction, setIsSubmittingAction] = useState(false);
+    const containerRef = useRef<HTMLDivElement>(null);
+
+    useSwipe(containerRef, {
+        onSwipeRight: onBack,
+        edgeSwipeOnly: true
+    });
     
     // 이 현장의 점검 로그 중 현재 역할(Role)이 지적한 미조치 Warning 로그들만 필터링
     const siteLogs = logs.filter(l => l.siteId === site.id);
@@ -94,6 +103,7 @@ const SiteDetail: React.FC<SiteDetailProps> = ({ site, logs, currentRole, onBack
                 if (!isResolved) {
                     alert(`AI 시각적 판독 결과 (조치 미흡):\n${feedback}\n\n*보완 후 다시 제출해주세요.`);
                 } else {
+                    hapticSuccess();
                     alert(`AI 시각적 판독 완료 (정상):\n${feedback}`);
                     setActionLogId(null);
                     setActionNotes("");
@@ -108,7 +118,7 @@ const SiteDetail: React.FC<SiteDetailProps> = ({ site, logs, currentRole, onBack
     };
 
     return (
-        <div className="flex flex-col h-[calc(100vh-70px)] bg-slate-50 relative">
+        <div ref={containerRef} className="flex flex-col h-[calc(100vh-70px)] bg-slate-50 relative">
             <div className="p-4 md:p-6 pb-24 overflow-y-auto animate-in slide-in-from-right-4">
                 {/* Header Back Button */}
                 <button onClick={onBack} className="flex items-center gap-2 text-slate-500 font-bold mb-4 hover:text-slate-800 transition-colors">
@@ -161,13 +171,19 @@ const SiteDetail: React.FC<SiteDetailProps> = ({ site, logs, currentRole, onBack
                                         <div className="border-t border-red-100 pt-3">
                                             {actionLogId === log.id ? (
                                                 <div className="animate-in fade-in zoom-in-95">
-                                                    <textarea 
-                                                        className="w-full border border-slate-200 rounded-xl p-3 bg-slate-50 text-sm focus:ring-2 focus:ring-indigo-500 outline-none mb-3"
-                                                        placeholder="예: 노출된 전선 정리 및 절연 마감 완료"
-                                                        rows={2}
-                                                        value={actionNotes}
-                                                        onChange={(e) => setActionNotes(e.target.value)}
-                                                    />
+                                                    <div className="relative">
+                                                        <textarea 
+                                                            className="w-full border border-slate-200 rounded-xl p-3 bg-slate-50 text-sm focus:ring-2 focus:ring-indigo-500 outline-none mb-3"
+                                                            placeholder="예: 노출된 전선 정리 및 절연 마감 완료"
+                                                            rows={2}
+                                                            value={actionNotes}
+                                                            onChange={(e) => setActionNotes(e.target.value)}
+                                                        />
+                                                        <VoiceInputButton 
+                                                            onResult={(text) => { hapticLight(); setActionNotes(prev => prev ? `${prev} ${text}` : text); }} 
+                                                            className="absolute bottom-6 right-3" 
+                                                        />
+                                                    </div>
 
                                                     {/* Photo Upload for Action */}
                                                     <div className="mb-4">
@@ -193,7 +209,7 @@ const SiteDetail: React.FC<SiteDetailProps> = ({ site, logs, currentRole, onBack
 
                                                     <div className="flex gap-2">
                                                         <button 
-                                                            onClick={submitCorrectiveAction}
+                                                            onClick={() => { hapticMedium(); submitCorrectiveAction(); }}
                                                             disabled={isSubmittingAction || !actionNotes.trim() || actionPhotos.length === 0}
                                                             className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-lg text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-50 transition-colors"
                                                         >

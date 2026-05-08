@@ -5,6 +5,8 @@ import { generateProjectFinalReport } from '../services/aiService';
 import { RiskAssessment } from './RiskAssessment';
 import { ArrowLeft, BrainCircuit, Activity, Navigation, Building2, HardHat, ShieldCheck, Briefcase, RefreshCw, BarChart3, AlertTriangle, CalendarClock, Filter, Search as SearchIcon, X, CalendarDays, CheckCircle2, Download, FileCheck2 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, CartesianGrid, Legend } from 'recharts';
+import PullToRefresh from './PullToRefresh';
+import { hapticLight } from '../utils/haptics';
 
 interface HQDashboardProps {
     stores: Store[];
@@ -306,51 +308,52 @@ const HQDashboard: React.FC<HQDashboardProps> = ({ stores, onExit }) => {
     };
 
     return (
-        <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-24">
-            {/* Header */}
-            <header className="sticky top-0 z-30 bg-indigo-900 text-white px-4 py-4 flex items-center justify-between shadow-md">
-                <div className="flex items-center gap-3">
-                    <div className="bg-white/20 p-2 rounded-lg">
-                        <Activity size={20} className="text-indigo-100" />
+        <PullToRefresh onRefresh={() => window.location.reload()}>
+            <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-24">
+                {/* Header */}
+                <header className="sticky top-0 z-30 bg-indigo-900 text-white px-4 py-4 flex items-center justify-between shadow-md">
+                    <div className="flex items-center gap-3">
+                        <div className="bg-white/20 p-2 rounded-lg">
+                            <Activity size={20} className="text-indigo-100" />
+                        </div>
+                        <div>
+                            <h1 className="font-bold text-lg leading-tight tracking-wide">본사 통합 관리자</h1>
+                            <p className="text-xs text-indigo-300 font-medium">전점 통합 현황 대시보드</p>
+                        </div>
                     </div>
-                    <div>
-                        <h1 className="font-bold text-lg leading-tight tracking-wide">본사 통합 관리자</h1>
-                        <p className="text-xs text-indigo-300 font-medium">전점 통합 현황 대시보드</p>
-                    </div>
-                </div>
-                <button
-                    onClick={onExit}
-                    className="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors"
-                >
-                    <ArrowLeft size={16} /> 나가기
-                </button>
-            </header>
+                    <button
+                        onClick={onExit}
+                        className="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors"
+                    >
+                        <ArrowLeft size={16} /> 나가기
+                    </button>
+                </header>
 
-            <main className="max-w-4xl mx-auto p-4 md:p-6">
-                
-                {/* Tabs */}
-                {activeTab !== 'storeDetail' && (
-                    <div className="flex bg-slate-200 p-1 rounded-xl mb-6 shadow-sm overflow-x-auto no-scrollbar">
-                        <button
-                            onClick={() => setActiveTab('overview')}
-                            className={`flex-1 min-w-[120px] py-3 text-sm font-bold rounded-lg flex items-center justify-center gap-2 transition-all ${activeTab === 'overview' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                        >
-                            <BarChart3 size={16} /> 데이터 분석
-                        </button>
-                        <button
-                            onClick={() => setActiveTab('reports')}
-                            className={`flex-1 min-w-[120px] py-3 text-sm font-bold rounded-lg flex items-center justify-center gap-2 transition-all ${activeTab === 'reports' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                        >
-                            <BrainCircuit size={16} /> 완료 보고서
-                        </button>
-                        <button
-                            onClick={() => setActiveTab('archive')}
-                            className={`flex-1 min-w-[120px] py-3 text-sm font-bold rounded-lg flex items-center justify-center gap-2 transition-all ${activeTab === 'archive' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                        >
-                            <FileCheck2 size={16} /> 수시평가 보관함
-                        </button>
-                    </div>
-                )}
+                <main className="max-w-4xl mx-auto p-4 md:p-6">
+                    
+                    {/* Tabs */}
+                    {activeTab !== 'storeDetail' && (
+                        <div className="flex bg-slate-200 p-1 rounded-xl mb-6 shadow-sm overflow-x-auto no-scrollbar">
+                            <button
+                                onClick={() => { hapticLight(); setActiveTab('overview'); }}
+                                className={`flex-1 min-w-[120px] py-3 text-sm font-bold rounded-lg flex items-center justify-center gap-2 transition-all ${activeTab === 'overview' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                            >
+                                <BarChart3 size={16} /> 데이터 분석
+                            </button>
+                            <button
+                                onClick={() => { hapticLight(); setActiveTab('reports'); }}
+                                className={`flex-1 min-w-[120px] py-3 text-sm font-bold rounded-lg flex items-center justify-center gap-2 transition-all ${activeTab === 'reports' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                            >
+                                <BrainCircuit size={16} /> 완료 보고서
+                            </button>
+                            <button
+                                onClick={() => { hapticLight(); setActiveTab('archive'); }}
+                                className={`flex-1 min-w-[120px] py-3 text-sm font-bold rounded-lg flex items-center justify-center gap-2 transition-all ${activeTab === 'archive' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                            >
+                                <FileCheck2 size={16} /> 수시평가 보관함
+                            </button>
+                        </div>
+                    )}
 
                 {/* Date Filter Configuration */}
                 {activeTab === 'overview' && (
@@ -938,6 +941,7 @@ const HQDashboard: React.FC<HQDashboardProps> = ({ stores, onExit }) => {
                 )}
             </main>
         </div>
+        </PullToRefresh>
     );
 };
 

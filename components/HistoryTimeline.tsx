@@ -3,6 +3,8 @@ import { InspectionLog, Site, Role, RiskLevel } from '../types';
 import { X, Clock, AlertTriangle, CheckCircle2, ChevronRight, Ban, Hammer, ShieldAlert, FileText, Check, Maximize2, AlertCircle, Search, BrainCircuit } from 'lucide-react';
 import ImageWithSkeleton from './ImageWithSkeleton';
 import ImageModal from './ImageModal';
+import { useSwipe } from '../hooks/useSwipe';
+import { hapticMedium } from '../utils/haptics';
 
 interface HistoryTimelineProps {
     site: Site;
@@ -12,11 +14,18 @@ interface HistoryTimelineProps {
 
 const HistoryTimeline: React.FC<HistoryTimelineProps> = ({ site, logs, onClose }) => {
     const [selectedLog, setSelectedLog] = useState<InspectionLog | null>(null);
-    const [selectedImage, setSelectedImage] = useState<string | null>(null);
+    const [galleryContext, setGalleryContext] = useState<{ urls: string[], index: number } | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [filterMode, setFilterMode] = useState<'ALL' | 'WARNING' | 'CAUTION' | 'PENDING'>('ALL');
     const [visibleDays, setVisibleDays] = useState(7);
     const timelineRef = useRef<HTMLDivElement>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
+
+    // 스와이프 뒤로가기 적용
+    useSwipe(containerRef, {
+        onSwipeRight: onClose,
+        edgeSwipeOnly: true
+    });
 
     const siteLogs = logs.filter(l => l.siteId === site.id);
 
@@ -380,7 +389,7 @@ const HistoryTimeline: React.FC<HistoryTimelineProps> = ({ site, logs, onClose }
                                         <div className="text-xs font-bold text-slate-500 mb-1.5 flex items-center gap-1">현장 사진 ({selectedLog.photos.length}장)</div>
                                         <div className="grid grid-cols-2 gap-2">
                                             {selectedLog.photos.map((photo, idx) => (
-                                                <button key={idx} onClick={() => setSelectedImage(photo)} className="aspect-square rounded-xl border border-slate-200 relative group bg-slate-100 p-0 overflow-hidden">
+                                                <button key={idx} onClick={() => setGalleryContext({ urls: selectedLog.photos, index: idx })} className="aspect-square rounded-xl border border-slate-200 relative group bg-slate-100 p-0 overflow-hidden">
                                                     <ImageWithSkeleton src={photo} containerClassName="w-full h-full" className="w-full h-full object-cover transition-transform group-hover:scale-105" alt="" />
                                                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center z-10">
                                                         <Maximize2 className="text-white opacity-0 group-hover:opacity-100" size={20} />
@@ -410,7 +419,7 @@ const HistoryTimeline: React.FC<HistoryTimelineProps> = ({ site, logs, onClose }
                                                 <div className="grid grid-cols-2 gap-3">
                                                     <div className="space-y-1.5">
                                                         <div className="text-[10px] font-bold text-red-500 text-center bg-red-50 py-0.5 rounded uppercase tracking-wider">Before (지적)</div>
-                                                        <div className="aspect-square rounded-xl border border-red-100 bg-white cursor-pointer overflow-hidden" onClick={() => setSelectedImage(selectedLog.photos[0])}>
+                                                        <div className="aspect-square rounded-xl border border-red-100 bg-white cursor-pointer overflow-hidden" onClick={() => setGalleryContext({ urls: [selectedLog.photos[0]], index: 0 })}>
                                                             {selectedLog.photos && selectedLog.photos.length > 0 ? (
                                                                 <ImageWithSkeleton src={selectedLog.photos[0]} containerClassName="w-full h-full" className="w-full h-full object-cover hover:scale-105 transition-transform" alt="before" />
                                                             ) : (
@@ -422,7 +431,7 @@ const HistoryTimeline: React.FC<HistoryTimelineProps> = ({ site, logs, onClose }
                                                     </div>
                                                     <div className="space-y-1.5">
                                                         <div className="text-[10px] font-bold text-emerald-600 text-center bg-emerald-50 py-0.5 rounded uppercase tracking-wider">After (조치)</div>
-                                                        <div className="aspect-square rounded-xl border border-emerald-100 bg-white relative group cursor-pointer overflow-hidden" onClick={() => setSelectedImage(selectedLog.action!.resolvedPhotos![0])}>
+                                                        <div className="aspect-square rounded-xl border border-emerald-100 bg-white relative group cursor-pointer overflow-hidden" onClick={() => setGalleryContext({ urls: selectedLog.action!.resolvedPhotos || [], index: 0 })}>
                                                             {selectedLog.action.resolvedPhotos && selectedLog.action.resolvedPhotos.length > 0 ? (
                                                                 <>
                                                                     <ImageWithSkeleton src={selectedLog.action.resolvedPhotos[0]} containerClassName="w-full h-full" className="w-full h-full object-cover hover:scale-105 transition-transform" alt="after" />
@@ -473,9 +482,13 @@ const HistoryTimeline: React.FC<HistoryTimelineProps> = ({ site, logs, onClose }
 
             </div>
 
-            {/* 이미지 전체 화면 (줌 지원) */}
-            {selectedImage && (
-                <ImageModal imageUrl={selectedImage} onClose={() => setSelectedImage(null)} />
+            {/* 이미지 전체 화면 (줌 및 스와이프 지원) */}
+            {galleryContext && (
+                <ImageModal 
+                    imageUrls={galleryContext.urls} 
+                    initialIndex={galleryContext.index} 
+                    onClose={() => setGalleryContext(null)} 
+                />
             )}
         </div>
     );

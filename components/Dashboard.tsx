@@ -6,6 +6,9 @@ import { generateDailySafetySummary, validateCorrectiveAction } from '../service
 import { updateLog } from '../services/firestore';
 import { sendAlimTalk } from '../services/notification';
 import HistoryTimeline from './HistoryTimeline';
+import { hapticLight, hapticMedium, hapticSuccess } from '../utils/haptics';
+import PullToRefresh from './PullToRefresh';
+import ImageModal from './ImageModal';
 
 interface DashboardProps {
     logs: InspectionLog[];
@@ -221,6 +224,7 @@ const Dashboard: React.FC<DashboardProps> = ({ logs, sites, assessments, onAddSi
             if (!isResolved) {
                 alert(`AI 추가 조치 권고:\n${feedback}`);
             } else {
+                hapticSuccess();
                 alert("조치가 정상적으로 승인되었습니다.");
             }
         }
@@ -248,12 +252,10 @@ const Dashboard: React.FC<DashboardProps> = ({ logs, sites, assessments, onAddSi
             }
         }
 
-        if (errors.length > 0) {
-           alert(`발송 완료 내역: ${totalSent}건 성공\n일부 오류 발생:\n${errors[0]}`);
-        } else if (totalSent > 0) {
-           alert(`총 ${totalSent}개 현장에 미점검 알림톡/문자 발송이 성공했습니다!`);
-        } else {
-           alert("현재 수동으로 알림톡을 발송할 미점검 현장이 없습니다.");
+        if (errors.length > 0) alert(`완료! 발송: ${totalSent}건, 실패: ${errors.length}건`);
+        else {
+            hapticSuccess();
+            alert(`전체 점검 독려 알림톡(${totalSent}건) 발송 완료!`);
         }
     };
 
@@ -339,33 +341,27 @@ const Dashboard: React.FC<DashboardProps> = ({ logs, sites, assessments, onAddSi
     const pendingRiskSites = sites.filter(s => !isRiskAssessmentExempt(s) && !assessments.some(a => a.siteId === s.id && a.status === RiskAssessmentStatus.APPROVED));
 
     return (
-        <div className="p-4 md:p-6 pb-24">
-            <div className="flex bg-slate-200 p-1 rounded-xl mb-6 overflow-x-auto no-scrollbar">
-                <button
-                    onClick={() => setActiveTab('monitoring')}
-                    className={`flex-1 min-w-[100px] py-2.5 text-xs md:text-sm font-bold rounded-lg flex items-center justify-center gap-2 transition-all ${activeTab === 'monitoring' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                >
-                    <LayoutGrid size={16} /> 통합 관제
-                </button>
-                <button
-                    onClick={() => setActiveTab('analysis')}
-                    className={`flex-1 min-w-[100px] py-2.5 text-xs md:text-sm font-bold rounded-lg flex items-center justify-center gap-2 transition-all ${activeTab === 'analysis' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                >
-                    <Activity size={16} /> 위험 분석
-                </button>
-                <button
-                    onClick={() => setActiveTab('management')}
-                    className={`flex-1 min-w-[100px] py-2.5 text-xs md:text-sm font-bold rounded-lg flex items-center justify-center gap-2 transition-all ${activeTab === 'management' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                >
-                    <ListChecks size={16} /> 현장 설정
-                </button>
-                <button
-                    onClick={() => setActiveTab('risk_assessment')}
-                    className={`flex-1 min-w-[100px] py-2.5 text-xs md:text-sm font-bold rounded-lg flex items-center justify-center gap-2 transition-all ${activeTab === 'risk_assessment' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                >
-                    <FileText size={16} /> 마무리 점검
-                </button>
-            </div>
+        <PullToRefresh onRefresh={() => window.location.reload()}>
+            <div className="p-4 md:p-6 pb-24">
+                <div className="flex bg-slate-200 p-1 rounded-xl mb-6 overflow-x-auto no-scrollbar gap-1">
+                    {[
+                        { id: 'monitoring', label: '통합 관제', icon: LayoutGrid },
+                        { id: 'analysis', label: '위험 분석', icon: Activity },
+                        { id: 'management', label: '현장 설정', icon: ListChecks },
+                        { id: 'risk_assessment', label: '마무리 점검', icon: FileText },
+                    ].map((tab) => (
+                        <button
+                            key={tab.id}
+                            onClick={() => { hapticLight(); setActiveTab(tab.id as any); }}
+                            className={`flex-1 min-w-[100px] py-2.5 text-xs md:text-sm font-bold rounded-lg flex items-center justify-center gap-2 transition-all
+                                ${activeTab === tab.id ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}
+                            `}
+                        >
+                            <tab.icon size={16} />
+                            {tab.label}
+                        </button>
+                    ))}
+                </div>
 
             {activeTab === 'risk_assessment' && (
                 <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
@@ -931,11 +927,10 @@ const Dashboard: React.FC<DashboardProps> = ({ logs, sites, assessments, onAddSi
             )}
 
             {selectedImage && (
-                <div className="fixed inset-0 z-[80] bg-black/90 flex items-center justify-center p-4" onClick={() => setSelectedImage(null)}>
-                    <img src={selectedImage} className="max-w-full max-h-[90vh] rounded-lg" alt="Full size" />
-                </div>
+                <ImageModal imageUrls={[selectedImage]} onClose={() => setSelectedImage(null)} />
             )}
         </div>
+        </PullToRefresh>
     );
 };
 
