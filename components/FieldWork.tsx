@@ -8,6 +8,7 @@ import { useRef } from 'react';
 import VoiceInputButton from './VoiceInputButton';
 import { hapticLight, hapticSuccess } from '../utils/haptics';
 import ImageModal from './ImageModal';
+import { compressImage } from '../utils/imageUtils';
 
 interface FieldWorkProps {
     siteId: string | null;
