@@ -68,18 +68,23 @@ const FieldWork: React.FC<FieldWorkProps> = ({ siteId, sites, currentRole, onSub
                         if (isFirstPhoto) {
                             const analysis = await analyzeSafetyPhoto(compressedBase64);
                             
-                            // 함수형 업데이트를 통해 사용자가 그 사이 수정한 값을 덮어쓰지 않도록 보호
-                            setRisk(prevRisk => {
-                                if (prevRisk === RiskLevel.NORMAL) {
-                                    if (analysis.risk === '경고') return RiskLevel.WARNING;
-                                    if (analysis.risk === '주의') return RiskLevel.CAUTION;
-                                }
-                                return prevRisk;
-                            });
-                            
+                            // AI 분석 결과를 특이사항에 반영
                             setNotes(prevNotes => {
-                                if (!prevNotes && analysis.description) return analysis.description;
-                                return prevNotes;
+                                // 기존 메모가 없거나 기본 플레이스홀더인 경우에만 덮어쓰기
+                                if (!prevNotes || prevNotes.includes("현장 특이사항이나 조치가 필요한 사항")) {
+                                    return analysis.description;
+                                }
+                                // 기존 메모가 있는 경우 아래에 추가
+                                return `${prevNotes}\n\n[AI 분석]\n${analysis.description}`;
+                            });
+
+                            // 위험도 자동 설정
+                            setRisk(prevRisk => {
+                                const lowerRisk = analysis.risk.toLowerCase();
+                                if (lowerRisk.includes('경고') || lowerRisk.includes('위험')) return RiskLevel.WARNING;
+                                if (lowerRisk.includes('주의')) return RiskLevel.CAUTION;
+                                if (lowerRisk.includes('정상') || lowerRisk.includes('양호')) return RiskLevel.NORMAL;
+                                return prevRisk;
                             });
                         }
                     } catch (error) {

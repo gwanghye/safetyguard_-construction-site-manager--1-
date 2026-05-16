@@ -45,15 +45,45 @@ export const analyzeSafetyPhoto = async (base64Image: string): Promise<{ risk: s
     const cleanBase64 = await fetchAsBase64(base64Image);
     const analyzePhotoAPI = httpsCallable(functions, 'analyzeSafetyPhoto');
     const result = await analyzePhotoAPI({ imageBase64: cleanBase64, mimeType: 'image/jpeg' });
-    const data = result.data as any;
-    
+    const raw = result.data as any;
+    console.log("AI Analysis Raw Result:", raw);
+
+    // 서버가 JSON 객체를 반환한 경우
+    if (raw && typeof raw === 'object') {
+      const riskLevel = raw.riskLevel || raw.risk || "주의";
+      const description = raw.description || raw.summary || "분석 내용 없음";
+      const hazards: string[] = Array.isArray(raw.hazards) ? raw.hazards : (raw.hazards ? [raw.hazards] : ["식별된 위험요소 없음"]);
+      const recommendations: string[] = Array.isArray(raw.recommendations) ? raw.recommendations : (raw.recommendations ? [raw.recommendations] : ["특이사항 없음"]);
+
+      const formattedDescription =
+        `1. 위험 판단 단계: ${riskLevel}\n` +
+        `2. 현상황 설명: ${description}\n` +
+        `3. 도출된 위험요소: ${hazards.join(' / ')}\n` +
+        `4. 권고 조치사항: ${recommendations.join(' / ')}`;
+
+      return { risk: riskLevel, description: formattedDescription };
+    }
+
+    // 서버가 문자열을 반환한 경우 (JSON 파싱 실패)
+    const rawStr = String(raw || "");
     return {
-      risk: data.riskLevel || "주의",
-      description: data.description || "사진을 분석할 수 없습니다."
+      risk: "주의",
+      description:
+        `1. 위험 판단 단계: 주의\n` +
+        `2. 현상황 설명: ${rawStr.substring(0, 200)}\n` +
+        `3. 도출된 위험요소: 분석 결과 확인 필요\n` +
+        `4. 권고 조치사항: 현장 담당자에게 문의하세요`
     };
-  } catch (e) {
-    console.error(e);
-    return { risk: "정상", description: "서버 오류로 사진을 분석할 수 없습니다." };
+  } catch (e: any) {
+    console.error("analyzeSafetyPhoto error:", e);
+    return {
+      risk: "주의",
+      description:
+        `1. 위험 판단 단계: 분석 실패\n` +
+        `2. 현상황 설명: AI 분석 중 오류가 발생했습니다 (${e?.message || "알 수 없는 오류"})\n` +
+        `3. 도출된 위험요소: 직접 확인 필요\n` +
+        `4. 권고 조치사항: 사진을 다시 업로드하거나 수동으로 입력해주세요`
+    };
   }
 };
 
