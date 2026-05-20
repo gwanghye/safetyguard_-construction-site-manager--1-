@@ -511,6 +511,20 @@ const Dashboard: React.FC<DashboardProps> = ({ logs, sites, assessments, onAddSi
         managerPhones: { SALES: [''], SAFETY: [''], FACILITY: [''], SUPPORT: [''], SALES_TL: [''], SUPPORT_TL: [''], STORE_MANAGER: [''] }
     });
 
+    // Automatically inherit drawing URL from other sites on the same floor
+    useEffect(() => {
+        if (showSiteForm && siteForm.floor) {
+            const floorUpper = siteForm.floor.trim().toUpperCase();
+            const existingDrawing = sites.find(s => s.floor.trim().toUpperCase() === floorUpper && s.drawingUrl)?.drawingUrl || '';
+            setSiteForm(prev => {
+                if (prev.drawingUrl !== existingDrawing) {
+                    return { ...prev, drawingUrl: existingDrawing };
+                }
+                return prev;
+            });
+        }
+    }, [siteForm.floor, showSiteForm, sites]);
+
     const [selectedDate, setSelectedDate] = useState<string>(() => {
         const now = new Date();
         const year = now.getFullYear();
@@ -664,18 +678,6 @@ const Dashboard: React.FC<DashboardProps> = ({ logs, sites, assessments, onAddSi
             newPhones[role]!.splice(index, 1);
             setSiteForm({ ...siteForm, managerPhones: newPhones });
         }
-    };
-
-    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            if (event.target?.result) {
-                setSiteForm(prev => ({ ...prev, drawingUrl: event.target.result as string, layoutType: 'custom' }));
-            }
-        };
-        reader.readAsDataURL(file);
     };
 
     // Draggable pin handler: click on map preview to set X/Y position
@@ -1604,33 +1606,9 @@ const Dashboard: React.FC<DashboardProps> = ({ logs, sites, assessments, onAddSi
                                 </h4>
                                 <div className="space-y-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
 
-                                    {/* Image Upload — PNG / JPG / SVG 모두 허용 */}
-                                    <div className="space-y-2">
-                                        <label className="block text-xs font-bold text-slate-500">도면 이미지 업로드 (PNG / JPG / SVG)</label>
-                                        <div className="flex items-center gap-2">
-                                            <label className="flex items-center gap-1.5 px-3 py-2 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg cursor-pointer text-xs font-bold text-slate-600 transition-colors shadow-sm">
-                                                <Upload size={14} className="text-indigo-500" />
-                                                이미지 선택
-                                                <input
-                                                    type="file"
-                                                    accept="image/*,.svg"
-                                                    onChange={handleImageUpload}
-                                                    className="hidden"
-                                                />
-                                            </label>
-                                            {siteForm.drawingUrl && (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setSiteForm(prev => ({ ...prev, drawingUrl: '' }))}
-                                                    className="text-[10px] text-red-500 hover:text-red-700 font-bold"
-                                                >
-                                                    ✕ 제거
-                                                </button>
-                                            )}
-                                        </div>
-                                        <p className="text-[10px] text-slate-400">
-                                            {siteForm.drawingUrl ? '✓ 도면이 등록되었습니다.' : '도면을 등록하지 않으면 기본 템플릿 도면이 표시됩니다.'}
-                                        </p>
+                                    <div className="text-[10px] text-slate-500 bg-indigo-50 p-2 rounded-lg mb-2">
+                                        <span className="font-bold">안내:</span> 해당 층의 도면이 아직 등록되지 않은 경우 기본 템플릿이 표시됩니다.<br/>
+                                        층별 도면 일괄 등록은 관제화면 메인의 <strong>[도면 등록]</strong> 버튼을 이용해주세요.
                                     </div>
 
                                     {/* Drag-to-pin 위치 지정 */}
