@@ -25,5 +25,22 @@
     },
     "allowImportingTsExtensions": true,
     "noEmit": true
-  }
+  },
+  "include": [
+    "App.tsx",
+    "index.tsx",
+    "firebase.ts",
+    "vite-env.d.ts",
+    "components/**/*",
+    "hooks/**/*",
+    "services/**/*",
+    "utils/**/*",
+    "types.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "*.cjs",
+    "firebase_functions"
+  ]
 }

@@ -122,6 +122,7 @@ export interface Site {
 export interface InspectionLog {
   id: string;
   siteId: string;
+  storeId?: string;
   siteName: string;
   workType: string;
   timestamp: number;

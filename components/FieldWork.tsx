@@ -3,10 +3,9 @@ import { Site, InspectionLog, RiskLevel, Role } from '../types';
 import { Camera, CheckSquare, Upload, X, Maximize2, AlertTriangle, MapPin, Hammer, ShieldCheck } from 'lucide-react';
 import { analyzeSafetyPhoto } from '../services/aiService';
 import { uploadMultipleImages } from '../services/storageService';
-import { useSwipe } from '../hooks/useSwipe';
 import { useRef } from 'react';
 import VoiceInputButton from './VoiceInputButton';
-import { hapticLight, hapticSuccess } from '../utils/haptics';
+import { hapticLight, hapticSuccess, hapticMedium } from '../utils/haptics';
 import ImageModal from './ImageModal';
 import { compressImage } from '../utils/imageUtils';
 
@@ -31,11 +30,6 @@ const FieldWork: React.FC<FieldWorkProps> = ({ siteId, sites, currentRole, onSub
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
-
-    useSwipe(containerRef, {
-        onSwipeRight: onCancel,
-        edgeSwipeOnly: true
-    });
 
     // Get Site Info
     const site = sites.find(s => s.id === siteId);
@@ -117,6 +111,7 @@ const FieldWork: React.FC<FieldWorkProps> = ({ siteId, sites, currentRole, onSub
                 const { saveOfflineAction } = await import('../services/offlineSync');
                 const offlineLog = {
                     siteId: site.id,
+                    storeId: site.storeId,
                     siteName: site.name,
                     workType: workType,
                     timestamp: Date.now(),

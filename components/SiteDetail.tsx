@@ -5,9 +5,9 @@ import { verifyVisualAction } from '../services/aiService';
 import { uploadMultipleImages } from '../services/storageService';
 import VoiceInputButton from './VoiceInputButton';
 import { hapticLight, hapticMedium, hapticSuccess } from '../utils/haptics';
+import { updateLog } from '../services/firestore';
 
 import { compressImage } from '../utils/imageUtils';
-import { useSwipe } from '../hooks/useSwipe';
 import { useRef } from 'react';
 
 interface SiteDetailProps {
@@ -26,11 +26,6 @@ const SiteDetail: React.FC<SiteDetailProps> = ({ site, logs, currentRole, onBack
     const [isSubmittingAction, setIsSubmittingAction] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
 
-    useSwipe(containerRef, {
-        onSwipeRight: onBack,
-        edgeSwipeOnly: true
-    });
-    
     // 이 현장의 점검 로그 중 현재 역할(Role)이 지적한 미조치 Warning 로그들만 필터링
     const siteLogs = logs.filter(l => l.siteId === site.id);
     const pendingWarnings = siteLogs.filter(l => l.riskLevel === RiskLevel.WARNING && (!l.action || l.action.status === 'PENDING') && l.inspectorRole === currentRole);
@@ -45,7 +40,7 @@ const SiteDetail: React.FC<SiteDetailProps> = ({ site, logs, currentRole, onBack
                     const compressedBase64 = await compressImage(originalBase64);
                     setActionPhotos(prev => [...prev, compressedBase64]);
                 };
-                reader.readAsDataURL(file);
+                reader.readAsDataURL(file as File);
             });
         }
     };

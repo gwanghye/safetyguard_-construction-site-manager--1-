@@ -3,7 +3,6 @@ import { InspectionLog, Site, Role, RiskLevel } from '../types';
 import { X, Clock, AlertTriangle, CheckCircle2, ChevronRight, Ban, Hammer, ShieldAlert, FileText, Check, Maximize2, AlertCircle, Search, BrainCircuit } from 'lucide-react';
 import ImageWithSkeleton from './ImageWithSkeleton';
 import ImageModal from './ImageModal';
-import { useSwipe } from '../hooks/useSwipe';
 import { hapticMedium } from '../utils/haptics';
 
 interface HistoryTimelineProps {
@@ -20,12 +19,6 @@ const HistoryTimeline: React.FC<HistoryTimelineProps> = ({ site, logs, onClose }
     const [visibleDays, setVisibleDays] = useState(7);
     const timelineRef = useRef<HTMLDivElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
-
-    // 스와이프 뒤로가기 적용
-    useSwipe(containerRef, {
-        onSwipeRight: onClose,
-        edgeSwipeOnly: true
-    });
 
     const siteLogs = logs.filter(l => l.siteId === site.id);
 

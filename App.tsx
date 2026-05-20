@@ -124,7 +124,7 @@ const App: React.FC = () => {
               if (logData.photos && logData.photos.length > 0) {
                  logData.photos = await uploadMultipleImages(logData.photos, 'inspections');
               }
-              await addLog(logData);
+              await addLog(logData, logData.storeId || activeStore?.id);
               removeOfflineAction(action.id);
             } else if (action.type === 'UPDATE_LOG') {
               const { logId, actionPhotos, actionNotes } = action.payload;

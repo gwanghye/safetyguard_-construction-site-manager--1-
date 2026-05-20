@@ -25,14 +25,15 @@ const fetchAsBase64 = async (urlOrBase64: string): Promise<string> => {
   }
 };
 
-export const generateDailySafetySummary = async (logs: InspectionLog[]): Promise<string> => {
+export const generateDailySafetySummary = async (logs: InspectionLog[], dateStr?: string): Promise<string> => {
+  const datePrefix = dateStr ? `[보고서 날짜: ${dateStr}]\n위 보고서 날짜(${dateStr})를 기준으로 일일 안전 브리핑을 작성해주세요.\n\n` : '';
   const logsText = logs.map(log =>
     `[${log.riskLevel}] 현장: ${log.siteName}, 점검자: ${log.inspector}, 특이사항: ${log.notes}, 체크리스트부적합: ${Object.entries(log.checklist).filter(([_, val]) => !val).map(([key]) => key).join(', ')}`
   ).join('\n');
 
   try {
     const generateSummaryAPI = httpsCallable(functions, 'generateDailySafetySummary');
-    const result = await generateSummaryAPI({ logsData: logsText });
+    const result = await generateSummaryAPI({ logsData: datePrefix + logsText });
     return (result.data as any).summary || "분석 보고서가 생성되지 않았습니다.";
   } catch (error) {
     console.error("Error generating summary:", error);
@@ -137,4 +138,21 @@ export const verifyVisualAction = async (beforePhoto: string, afterPhoto: string
 
 export const validateCorrectiveAction = async (originalNotes: string, actionNotes: string): Promise<{ isResolved: boolean, feedback: string }> => {
   return { isResolved: true, feedback: "서면 조치 확인이 완료되었습니다." };
+};
+
+export const generateRiskAssessmentInsights = async (assessments: any[]): Promise<string> => {
+  if (assessments.length === 0) return "수시위험성평가 데이터가 없어 통찰 요약을 생성할 수 없습니다.";
+
+  const assessmentsText = assessments.map(a =>
+    `[평가상태: ${a.status}] 현장: ${a.siteName}, 부서: ${a.department}, 작성자: ${a.authorName || '미상'}, 특이사항: ${a.notes || '없음'}, 점검항목: 천장(${a.checklist?.ceiling || '없음'}), 바닥(${a.checklist?.floor || '없음'}), 벽체(${a.checklist?.wall || '없음'}), 설비(${a.checklist?.equipment || '없음'}), 소화(${a.checklist?.fireSafety || '없음'}), 전기(${a.checklist?.electrical || '없음'})`
+  ).join('\n');
+
+  try {
+    const generateSummaryAPI = httpsCallable(functions, 'generateDailySafetySummary');
+    const result = await generateSummaryAPI({ logsData: assessmentsText });
+    return (result.data as any).summary || "인사이트가 생성되지 않았습니다.";
+  } catch (error) {
+    console.error("Error generating risk assessment insights:", error);
+    return "오류로 인해 위험성평가 인사이트를 분석하지 못했습니다.";
+  }
 };

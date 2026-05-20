@@ -77,7 +77,9 @@ const Dashboard: React.FC<DashboardProps> = ({ logs, sites, assessments, onAddSi
 
     const handleAiSummary = async () => {
         setLoadingAi(true);
-        const summary = await generateDailySafetySummary(todaysLogs);
+        const dateParts = selectedDate.split('-');
+        const dateStr = dateParts.length === 3 ? `${parseInt(dateParts[1])}월 ${parseInt(dateParts[2])}일` : selectedDate;
+        const summary = await generateDailySafetySummary(todaysLogs, dateStr);
         setAiSummary(summary);
         setLoadingAi(false);
     };
@@ -649,7 +651,12 @@ const Dashboard: React.FC<DashboardProps> = ({ logs, sites, assessments, onAddSi
 
                     <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col md:flex-row justify-between items-center gap-4">
                         <div className="bg-indigo-900 rounded-xl p-5 text-white w-full md:w-1/2 shadow-lg">
-                            <div className="flex items-center gap-2 font-bold text-indigo-200 text-sm mb-3"><BrainCircuit size={16} /> AI Summary</div>
+                            <div className="flex items-center gap-2 font-bold text-indigo-200 text-sm mb-3">
+                                <BrainCircuit size={16} /> 일일 보고서 ({(() => {
+                                    const dateParts = selectedDate.split('-');
+                                    return dateParts.length === 3 ? `${parseInt(dateParts[1])}월 ${parseInt(dateParts[2])}일` : selectedDate;
+                                })()})
+                            </div>
                             {loadingAi ? (
                                 <p className="animate-pulse text-sm text-indigo-300">리포트 생성중...</p>
                             ) : (
