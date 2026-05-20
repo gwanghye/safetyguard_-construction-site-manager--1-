@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { InspectionLog, RiskLevel, Site, Role, RiskAssessmentLog, RiskAssessmentStatus } from '../types';
-import { RefreshCw, BrainCircuit, Plus, X, LayoutGrid, ListChecks, Hammer, Edit, CheckCircle2, AlertCircle, Clock, Trash2, Ban, CalendarClock, AlertTriangle, BarChart3, ShieldAlert, Activity, Check, Send, PhoneCall, Smartphone, UserPlus, Minus, FileText, ChevronRight, FileCheck, Map, Upload } from 'lucide-react';
+import { RefreshCw, BrainCircuit, Plus, X, LayoutGrid, ListChecks, Hammer, Edit, CheckCircle2, AlertCircle, Clock, Trash2, Ban, CalendarClock, AlertTriangle, BarChart3, ShieldAlert, Activity, Check, Send, PhoneCall, Smartphone, UserPlus, Minus, FileText, ChevronRight, FileCheck, Map, Upload, Zap, TrendingUp, Wifi } from 'lucide-react';
 import { RiskAssessment } from './RiskAssessment';
 import { generateDailySafetySummary, validateCorrectiveAction } from '../services/aiService';
 import { updateLog } from '../services/firestore';
@@ -162,21 +162,56 @@ interface DigitalTwinMapProps {
     sites: Site[];
     logs: InspectionLog[];
     onSelectSite: (siteId: string) => void;
+    onUpdateSite?: (site: Site) => Promise<void> | void;
 }
 
-const DigitalTwinMap: React.FC<DigitalTwinMapProps> = ({ sites, logs, onSelectSite }) => {
-    // Only show active (non-완료) sites
-    const activeSites = sites.filter(s => s.status !== '완료');
+const DigitalTwinMap: React.FC<DigitalTwinMapProps> = ({ sites, logs, onSelectSite, onUpdateSite }) => {
+    const todayDate = new Date();
+    todayDate.setHours(0, 0, 0, 0);
 
-    // Floor tabs generated only from active sites
-    const availableFloors = Array.from(new Set(activeSites.map(s => s.floor.trim().toUpperCase()))).sort();
-    const [selectedFloor, setSelectedFloor] = useState<string>(() => availableFloors[0] || '1F');
+    const activeSitesToday = sites.filter(s => {
+        if (s.status === '완료') return false;
+        const start = new Date(s.startDate);
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(s.endDate);
+        end.setHours(23, 59, 59, 999);
+        return start <= todayDate && end >= todayDate;
+    });
 
-    // Sites to show on the map: active AND matching selected floor
-    const floorSites = activeSites.filter(s => s.floor.trim().toUpperCase() === selectedFloor.trim().toUpperCase());
+    // Floor tabs generated only from active sites today
+    const availableFloors = Array.from(new Set(activeSitesToday.map(s => s.floor.trim().toUpperCase()))).sort();
+    const [selectedFloorState, setSelectedFloor] = useState<string>('');
+    const selectedFloor = availableFloors.includes(selectedFloorState) ? selectedFloorState : (availableFloors[0] || '1F');
 
-    // Pick the floor plan image for this floor (first site with a drawing)
-    const floorDrawingUrl = floorSites.find(s => s.drawingUrl)?.drawingUrl || null;
+    useEffect(() => {
+        if (availableFloors.length > 0 && !availableFloors.includes(selectedFloorState)) {
+            setSelectedFloor(availableFloors[0]);
+        }
+    }, [availableFloors, selectedFloorState]);
+
+    // Sites to show on the map: active today AND matching selected floor
+    const floorSites = activeSitesToday.filter(s => s.floor.trim().toUpperCase() === selectedFloor.trim().toUpperCase());
+
+    // Pick the floor plan image for this floor (from any site on this floor, not just today's)
+    const floorDrawingUrl = sites.find(s => s.floor.trim().toUpperCase() === selectedFloor.trim().toUpperCase() && s.drawingUrl)?.drawingUrl || null;
+
+    const handleFloorPlanUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file || !onUpdateSite) return;
+        
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+            if (event.target?.result) {
+                const newUrl = event.target.result as string;
+                // Update all sites on this floor so they share the drawing
+                const sitesOnFloor = sites.filter(s => s.floor.trim().toUpperCase() === selectedFloor.trim().toUpperCase());
+                for (const s of sitesOnFloor) {
+                    await onUpdateSite({ ...s, drawingUrl: newUrl, layoutType: 'custom' });
+                }
+            }
+        };
+        reader.readAsDataURL(file);
+    };
 
     return (
         <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 space-y-3">
@@ -185,58 +220,63 @@ const DigitalTwinMap: React.FC<DigitalTwinMapProps> = ({ sites, logs, onSelectSi
                     <span className="w-2 h-2 rounded-full bg-indigo-600 animate-pulse" />
                     현장 위치
                     <span className="text-[10px] font-normal text-slate-400 ml-1">
-                        활성 {activeSites.length}개 현장
+                        금일 공사 {activeSitesToday.length}개 현장
                     </span>
                 </h3>
 
-                {/* Floor Selector — only floors that have active sites */}
-                {availableFloors.length > 1 && (
-                    <div className="flex gap-1 bg-slate-100 p-1 rounded-lg">
-                        {availableFloors.map(fl => (
-                            <button
-                                key={fl}
-                                type="button"
-                                onClick={() => setSelectedFloor(fl)}
-                                className={`px-2.5 py-1 text-[11px] font-bold rounded-md transition-all ${
-                                    selectedFloor === fl
-                                        ? 'bg-white text-indigo-600 shadow-sm'
-                                        : 'text-slate-500 hover:text-slate-800'
-                                }`}
-                            >
-                                {fl}
-                            </button>
-                        ))}
-                    </div>
-                )}
+                {/* Floor Selector and Upload */}
+                <div className="flex gap-2 items-center">
+                    {availableFloors.length > 1 && (
+                        <div className="flex gap-1 bg-slate-100 p-1 rounded-lg">
+                            {availableFloors.map(fl => (
+                                <button
+                                    key={fl}
+                                    type="button"
+                                    onClick={() => setSelectedFloor(fl)}
+                                    className={`px-2.5 py-1 text-[11px] font-bold rounded-md transition-all ${
+                                        selectedFloor === fl
+                                            ? 'bg-white text-indigo-600 shadow-sm'
+                                            : 'text-slate-500 hover:text-slate-800'
+                                    }`}
+                                >
+                                    {fl}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                    {selectedFloor && onUpdateSite && (
+                        <label className="cursor-pointer px-2 py-1 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-lg text-[11px] font-bold flex items-center gap-1 transition-colors">
+                            <Upload size={12} />
+                            도면 등록
+                            <input type="file" accept="image/*" className="hidden" onChange={handleFloorPlanUpload} />
+                        </label>
+                    )}
+                </div>
             </div>
 
-            {activeSites.length === 0 ? (
+            {activeSitesToday.length === 0 ? (
                 <div className="h-[200px] flex flex-col items-center justify-center text-slate-400 text-sm border-2 border-dashed border-slate-100 rounded-xl">
                     <Map size={32} className="mb-2 opacity-30" />
-                    활성화된 공사 현장이 없습니다.
+                    금일 활성화된 공사 현장이 없습니다.
                 </div>
             ) : (
                 <>
-                    {/* Isometric Map Arena */}
-                    <div className="relative w-full bg-slate-950 rounded-xl overflow-hidden flex items-center justify-center border border-slate-800 shadow-inner select-none" style={{ height: 280 }}>
-                        <div className="absolute inset-0 bg-[linear-gradient(to_right,#1e293b_1px,transparent_1px),linear-gradient(to_bottom,#1e293b_1px,transparent_1px)] bg-[size:24px_24px] opacity-20" />
-                        <div className="absolute w-[200px] h-[200px] bg-indigo-600/10 rounded-full blur-[80px] pointer-events-none" />
-
-                        {/* 3D Perspective Wrapper */}
-                        <div
-                            className="relative w-[340px] h-[255px]"
-                            style={{ transform: 'perspective(800px) rotateX(55deg) rotateZ(-40deg)', transformStyle: 'preserve-3d' }}
-                        >
+                    {/* Flat Map Arena */}
+                    <div className="relative w-full bg-slate-50 rounded-xl overflow-hidden flex items-center justify-center border border-slate-200 shadow-inner select-none" style={{ height: 280 }}>
+                        <div className="absolute inset-0 bg-[linear-gradient(to_right,#e2e8f0_1px,transparent_1px),linear-gradient(to_bottom,#e2e8f0_1px,transparent_1px)] bg-[size:24px_24px] opacity-50" />
+                        
+                        {/* 2D Wrapper */}
+                        <div className="relative w-full h-full p-2 flex items-center justify-center">
                             {/* Floor Plan Base */}
-                            <div className="absolute inset-0 bg-slate-900/80 rounded-xl border border-indigo-500/40 p-2 shadow-2xl overflow-hidden flex items-center justify-center">
+                            <div className="absolute inset-2 bg-white rounded-xl border border-indigo-100 p-1 shadow-sm overflow-hidden flex items-center justify-center">
                                 {floorDrawingUrl ? (
-                                    <img src={floorDrawingUrl} alt="Floor Plan" className="w-full h-full object-contain opacity-75" />
+                                    <img src={floorDrawingUrl} alt="Floor Plan" className="w-full h-full object-contain" />
                                 ) : (
                                     <DefaultFloorPlan />
                                 )}
                             </div>
 
-                            {/* Markers — only active sites on this floor */}
+                            {/* Markers */}
                             {floorSites.map(site => {
                                 const siteLogs = logs.filter(l => l.siteId === site.id);
                                 const hasWarning = siteLogs.some(l => l.riskLevel === '경고' && l.action?.status !== 'RESOLVED');
@@ -246,23 +286,24 @@ const DigitalTwinMap: React.FC<DigitalTwinMapProps> = ({ sites, logs, onSelectSi
                                 return (
                                     <div
                                         key={site.id}
-                                        className="absolute cursor-pointer group"
-                                        style={{ left: `${x}%`, top: `${y}%`, transform: 'translate(-50%,-50%)', transformStyle: 'preserve-3d' }}
+                                        className="absolute cursor-pointer group z-10"
+                                        style={{ left: `${x}%`, top: `${y}%`, transform: 'translate(-50%,-50%)' }}
                                         onClick={() => onSelectSite(site.id)}
                                     >
-                                        <div className="relative flex flex-col items-center" style={{ transform: 'rotateZ(40deg) rotateX(-55deg) translateZ(10px)', transformStyle: 'preserve-3d' }}>
-                                            <div className="absolute bottom-8 bg-slate-900/90 text-white border border-slate-700 text-[9px] font-bold px-2 py-1 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-30">
+                                        <div className="relative flex flex-col items-center">
+                                            <div className="absolute bottom-6 bg-slate-900/90 text-white border border-slate-700 text-[9px] font-bold px-2 py-1 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-30">
                                                 {site.name}
                                             </div>
-                                            <div className="w-[1.5px] h-5 bg-indigo-400/80" />
-                                            <div className={`w-4 h-4 rounded-full flex items-center justify-center shadow-lg border border-white/40 group-hover:scale-125 transition-transform text-white font-extrabold text-[7px] ${
-                                                hasWarning ? 'bg-rose-500 animate-pulse ring-4 ring-rose-500/50'
-                                                    : hasCaution ? 'bg-amber-500 ring-4 ring-amber-500/30'
-                                                    : 'bg-indigo-500 ring-4 ring-indigo-500/20'
+                                            <div className={`w-4 h-4 rounded-full flex items-center justify-center shadow-md border border-white/80 group-hover:scale-125 transition-transform text-white font-extrabold text-[7px] ${
+                                                hasWarning ? 'bg-rose-500 animate-pulse ring-2 ring-rose-500/50'
+                                                    : hasCaution ? 'bg-amber-500 ring-2 ring-amber-500/30'
+                                                    : 'bg-indigo-500 ring-2 ring-indigo-500/20'
                                             }`}>{site.floor}</div>
-                                            <div className="absolute top-5 w-7 h-7 rounded-full border opacity-50 pointer-events-none"
-                                                style={{ borderColor: hasWarning ? '#ef4444' : hasCaution ? '#f59e0b' : '#6366f1', animation: 'ping 2s cubic-bezier(0,0,0.2,1) infinite' }}
-                                            />
+                                            {hasWarning && (
+                                                <div className="absolute inset-0 w-4 h-4 rounded-full border opacity-50 pointer-events-none"
+                                                    style={{ borderColor: '#ef4444', animation: 'ping 1.5s cubic-bezier(0,0,0.2,1) infinite' }}
+                                                />
+                                            )}
                                         </div>
                                     </div>
                                 );
@@ -271,11 +312,11 @@ const DigitalTwinMap: React.FC<DigitalTwinMapProps> = ({ sites, logs, onSelectSi
                     </div>
 
                     {/* Legend — compact */}
-                    <div className="flex gap-3 text-[10px] text-slate-500 font-bold">
+                    <div className="flex gap-3 text-[10px] text-slate-500 font-bold px-1">
                         <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" /> 경고</span>
                         <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-500" /> 주의</span>
                         <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-indigo-500" /> 정상</span>
-                        <span className="text-slate-300 ml-auto">마커 클릭 시 해당 현장으로 이동</span>
+                        <span className="text-slate-400 ml-auto">마커 클릭 시 해당 현장으로 이동</span>
                     </div>
                 </>
             )}
@@ -831,6 +872,26 @@ const Dashboard: React.FC<DashboardProps> = ({ logs, sites, assessments, onAddSi
     const exemptSites = sites.filter(s => isRiskAssessmentExempt(s) && !approvedRiskAssessments.some(a => a.siteId === s.id));
     const pendingRiskSites = sites.filter(s => !isRiskAssessmentExempt(s) && !assessments.some(a => a.siteId === s.id && a.status === RiskAssessmentStatus.APPROVED));
 
+    // AI Safety Predictive Index (0~100) — computed from today's logs
+    const safetyIndex = (() => {
+        if (todaysLogs.length === 0) return null;
+        const totalChecks = todaysLogs.length * 4; // 4 checklist items
+        const passedChecks = todaysLogs.reduce((acc, l) => {
+            return acc + (l.checklist.ppe ? 1 : 0) + (l.checklist.fireSafety ? 1 : 0)
+                       + (l.checklist.electrical ? 1 : 0) + (l.checklist.environment ? 1 : 0);
+        }, 0);
+        const warningPenalty = todaysLogs.filter(l => l.riskLevel === RiskLevel.WARNING && l.action?.status !== 'RESOLVED').length * 10;
+        const cautionPenalty = todaysLogs.filter(l => l.riskLevel === RiskLevel.CAUTION && l.action?.status !== 'RESOLVED').length * 4;
+        const base = Math.round((passedChecks / totalChecks) * 100);
+        return Math.max(0, Math.min(100, base - warningPenalty - cautionPenalty));
+    })();
+
+    // Live feed: last 15 inspection events across all sites, newest first
+    const liveFeedItems = [...logs]
+        .sort((a, b) => b.timestamp - a.timestamp)
+        .slice(0, 15);
+
+
     return (
         <PullToRefresh onRefresh={() => window.location.reload()}>
             <div className="p-4 md:p-6 pb-24">
@@ -1012,7 +1073,117 @@ const Dashboard: React.FC<DashboardProps> = ({ logs, sites, assessments, onAddSi
                         </div>
                     </div>
 
-                    <DigitalTwinMap sites={sites} logs={logs} onSelectSite={scrollToSite} />
+                    <DigitalTwinMap sites={sites} logs={logs} onSelectSite={scrollToSite} onUpdateSite={onUpdateSite} />
+
+                    {/* ─── AI Safety Predictive Index + Live Feed ─── */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                        {/* AI Safety Index Ring */}
+                        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col items-center justify-center gap-3">
+                            <div className="flex items-center gap-2 self-start w-full">
+                                <TrendingUp size={15} className="text-indigo-500" />
+                                <span className="text-sm font-bold text-slate-800">AI 안전 지수</span>
+                                <span className="text-[10px] text-slate-400 font-medium ml-auto">오늘 점검 기반</span>
+                            </div>
+                            {safetyIndex === null ? (
+                                <div className="flex flex-col items-center gap-2 py-4">
+                                    <div className="w-20 h-20 rounded-full border-4 border-slate-100 flex items-center justify-center">
+                                        <span className="text-slate-300 text-xs font-bold">데이터<br/>없음</span>
+                                    </div>
+                                    <p className="text-[11px] text-slate-400">오늘 점검 데이터가 없습니다</p>
+                                </div>
+                            ) : (() => {
+                                const r = 38;
+                                const circ = 2 * Math.PI * r;
+                                const dash = (safetyIndex / 100) * circ;
+                                const color = safetyIndex >= 80 ? '#22c55e' : safetyIndex >= 60 ? '#f59e0b' : '#ef4444';
+                                const label = safetyIndex >= 80 ? '안전' : safetyIndex >= 60 ? '주의' : '위험';
+                                return (
+                                    <div className="flex flex-col items-center gap-3 w-full">
+                                        <div className="relative w-28 h-28">
+                                            <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
+                                                <circle cx="50" cy="50" r={r} fill="none" stroke="#f1f5f9" strokeWidth="10" />
+                                                <circle
+                                                    cx="50" cy="50" r={r} fill="none"
+                                                    stroke={color} strokeWidth="10"
+                                                    strokeLinecap="round"
+                                                    strokeDasharray={`${dash} ${circ}`}
+                                                    style={{ transition: 'stroke-dasharray 1s ease' }}
+                                                />
+                                            </svg>
+                                            <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                                <span className="text-2xl font-extrabold text-slate-900">{safetyIndex}</span>
+                                                <span className="text-[10px] font-bold" style={{ color }}>{label}</span>
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-3 gap-2 w-full text-center">
+                                            <div className="bg-red-50 rounded-xl py-2 px-1">
+                                                <div className="text-xs font-extrabold text-red-600">{todaysLogs.filter(l => l.riskLevel === RiskLevel.WARNING).length}</div>
+                                                <div className="text-[9px] text-red-400 font-bold">경고</div>
+                                            </div>
+                                            <div className="bg-amber-50 rounded-xl py-2 px-1">
+                                                <div className="text-xs font-extrabold text-amber-600">{todaysLogs.filter(l => l.riskLevel === RiskLevel.CAUTION).length}</div>
+                                                <div className="text-[9px] text-amber-400 font-bold">주의</div>
+                                            </div>
+                                            <div className="bg-emerald-50 rounded-xl py-2 px-1">
+                                                <div className="text-xs font-extrabold text-emerald-600">{todaysLogs.filter(l => l.riskLevel === RiskLevel.NORMAL).length}</div>
+                                                <div className="text-[9px] text-emerald-400 font-bold">정상</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })()}
+                        </div>
+
+                        {/* Live Activity Feed */}
+                        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col gap-3">
+                            <div className="flex items-center gap-2">
+                                <Wifi size={15} className="text-emerald-500" />
+                                <span className="text-sm font-bold text-slate-800">실시간 활동 피드</span>
+                                <span className="flex items-center gap-1 ml-auto">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                    <span className="text-[10px] text-emerald-500 font-bold">LIVE</span>
+                                </span>
+                            </div>
+                            {liveFeedItems.length === 0 ? (
+                                <div className="flex-1 flex flex-col items-center justify-center text-slate-300 py-6 gap-2">
+                                    <Zap size={28} className="opacity-30" />
+                                    <span className="text-xs">아직 점검 활동이 없습니다</span>
+                                </div>
+                            ) : (
+                                <div className="space-y-1.5 overflow-y-auto max-h-[210px] pr-1">
+                                    {liveFeedItems.map((item, idx) => {
+                                        const site = sites.find(s => s.id === item.siteId);
+                                        const roleLabel = item.inspectorRole === Role.FACILITY ? '시설' : item.inspectorRole === Role.SAFETY ? '안전' : item.inspectorRole === Role.SALES ? '영업' : '지원';
+                                        const roleColor = item.inspectorRole === Role.FACILITY ? 'bg-blue-100 text-blue-700' : item.inspectorRole === Role.SAFETY ? 'bg-emerald-100 text-emerald-700' : item.inspectorRole === Role.SALES ? 'bg-purple-100 text-purple-700' : 'bg-slate-100 text-slate-600';
+                                        const riskColor = item.riskLevel === RiskLevel.WARNING ? 'text-red-500' : item.riskLevel === RiskLevel.CAUTION ? 'text-amber-500' : 'text-emerald-500';
+                                        const elapsed = (() => {
+                                            const diff = Date.now() - item.timestamp;
+                                            const m = Math.floor(diff / 60000);
+                                            if (m < 1) return '방금 전';
+                                            if (m < 60) return `${m}분 전`;
+                                            const h = Math.floor(m / 60);
+                                            if (h < 24) return `${h}시간 전`;
+                                            return `${Math.floor(h / 24)}일 전`;
+                                        })();
+                                        return (
+                                            <div key={item.id} className={`flex items-start gap-2.5 p-2.5 rounded-xl border border-slate-50 bg-slate-50/60 hover:bg-slate-100/60 transition-colors ${idx === 0 ? 'ring-1 ring-indigo-200/60' : ''}`}>
+                                                <span className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded-md mt-0.5 shrink-0 ${roleColor}`}>{roleLabel}</span>
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex justify-between items-center gap-1">
+                                                        <span className="text-[11px] font-bold text-slate-700 truncate">{site?.name || item.siteName}</span>
+                                                        <span className={`text-[9px] font-bold shrink-0 ${riskColor}`}>{item.riskLevel}</span>
+                                                    </div>
+                                                    <div className="text-[10px] text-slate-400 truncate">{item.inspector} · {elapsed}</div>
+                                                    {item.notes && <div className="text-[10px] text-slate-500 mt-0.5 truncate">{item.notes}</div>}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+                    </div>
 
                     <div className="space-y-4">
                         <div className="flex justify-between items-center px-1">
