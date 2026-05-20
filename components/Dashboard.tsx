@@ -20,6 +20,50 @@ interface DashboardProps {
     storeName?: string;
 }
 
+const renderFormattedText = (text: string) => {
+    if (!text) return null;
+    
+    return text.split('\n').map((line, idx) => {
+        let cleanLine = line.trim();
+        
+        // 1. Headers
+        if (cleanLine.startsWith('###')) {
+            return <h3 key={idx} className="text-sm font-bold text-white mt-3 mb-1.5">{cleanLine.replace('###', '').trim()}</h3>;
+        }
+        if (cleanLine.startsWith('##')) {
+            return <h2 key={idx} className="text-base font-bold text-white mt-4 mb-2">{cleanLine.replace('##', '').trim()}</h2>;
+        }
+        if (cleanLine.startsWith('#')) {
+            return <h1 key={idx} className="text-lg font-bold text-white mt-5 mb-3">{cleanLine.replace('#', '').trim()}</h1>;
+        }
+        
+        // 2. Bullet list items
+        const isBullet = cleanLine.startsWith('-') || cleanLine.startsWith('*');
+        if (isBullet) {
+            cleanLine = cleanLine.substring(1).trim();
+        }
+        
+        // 3. Bold text parsing (**text**)
+        const parts = cleanLine.split('**');
+        const content = parts.map((part, i) => {
+            if (i % 2 === 1) {
+                return <strong key={i} className="font-bold text-yellow-300">{part}</strong>;
+            }
+            return part;
+        });
+        
+        if (isBullet) {
+            return (
+                <ul key={idx} className="list-disc pl-4 my-1">
+                    <li className="text-xs leading-relaxed text-indigo-100">{content}</li>
+                </ul>
+            );
+        }
+        
+        return <p key={idx} className="text-xs leading-relaxed text-indigo-100 min-h-[0.75rem]">{content}</p>;
+    });
+};
+
 const Dashboard: React.FC<DashboardProps> = ({ logs, sites, assessments, onAddSite, onUpdateSite, onDeleteSite, storeName }) => {
     const [activeTab, setActiveTab] = useState<'monitoring' | 'analysis' | 'management' | 'risk_assessment'>('monitoring');
     const [selectedRiskSite, setSelectedRiskSite] = useState<Site | null>(null);
@@ -70,17 +114,43 @@ const Dashboard: React.FC<DashboardProps> = ({ logs, sites, assessments, onAddSi
     const salesChecks = todaysLogs.filter(l => l.inspectorRole === Role.SALES).length;
 
     useEffect(() => {
-        if (activeTab === 'analysis' && !aiSummary && todaysLogs.length > 0) {
-            handleAiSummary();
+        const cacheKey = `ai_summary_${storeName || 'all'}_${selectedDate}`;
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) {
+            setAiSummary(cached);
+        } else {
+            setAiSummary("");
         }
-    }, [activeTab, todaysLogs.length]);
+    }, [selectedDate, storeName]);
 
-    const handleAiSummary = async () => {
+    useEffect(() => {
+        if (activeTab === 'analysis' && todaysLogs.length > 0) {
+            const cacheKey = `ai_summary_${storeName || 'all'}_${selectedDate}`;
+            const cached = localStorage.getItem(cacheKey);
+            if (cached) {
+                setAiSummary(cached);
+            } else if (!aiSummary) {
+                handleAiSummary(false);
+            }
+        }
+    }, [activeTab, todaysLogs.length, selectedDate]);
+
+    const handleAiSummary = async (force = false) => {
         setLoadingAi(true);
+        const cacheKey = `ai_summary_${storeName || 'all'}_${selectedDate}`;
+        if (!force) {
+            const cached = localStorage.getItem(cacheKey);
+            if (cached) {
+                setAiSummary(cached);
+                setLoadingAi(false);
+                return;
+            }
+        }
         const dateParts = selectedDate.split('-');
         const dateStr = dateParts.length === 3 ? `${parseInt(dateParts[1])}월 ${parseInt(dateParts[2])}일` : selectedDate;
         const summary = await generateDailySafetySummary(todaysLogs, dateStr);
         setAiSummary(summary);
+        localStorage.setItem(cacheKey, summary);
         setLoadingAi(false);
     };
 
@@ -651,16 +721,28 @@ const Dashboard: React.FC<DashboardProps> = ({ logs, sites, assessments, onAddSi
 
                     <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col md:flex-row justify-between items-center gap-4">
                         <div className="bg-indigo-900 rounded-xl p-5 text-white w-full md:w-1/2 shadow-lg">
-                            <div className="flex items-center gap-2 font-bold text-indigo-200 text-sm mb-3">
-                                <BrainCircuit size={16} /> 일일 보고서 ({(() => {
-                                    const dateParts = selectedDate.split('-');
-                                    return dateParts.length === 3 ? `${parseInt(dateParts[1])}월 ${parseInt(dateParts[2])}일` : selectedDate;
-                                })()})
+                            <div className="flex items-center justify-between font-bold text-indigo-200 text-sm mb-3">
+                                <span className="flex items-center gap-2">
+                                    <BrainCircuit size={16} /> 일일 보고서 ({(() => {
+                                        const dateParts = selectedDate.split('-');
+                                        return dateParts.length === 3 ? `${parseInt(dateParts[1])}월 ${parseInt(dateParts[2])}일` : selectedDate;
+                                    })()})
+                                </span>
+                                {todaysLogs.length > 0 && (
+                                    <button 
+                                        onClick={() => handleAiSummary(true)} 
+                                        disabled={loadingAi}
+                                        className="p-1 hover:bg-white/10 rounded text-indigo-300 hover:text-white transition-colors animate-none"
+                                        title="AI 분석 새로고침"
+                                    >
+                                        <RefreshCw size={14} className={loadingAi ? "animate-spin" : ""} />
+                                    </button>
+                                )}
                             </div>
                             {loadingAi ? (
                                 <p className="animate-pulse text-sm text-indigo-300">리포트 생성중...</p>
                             ) : (
-                                <p className="text-sm leading-relaxed whitespace-pre-wrap">{aiSummary || '기록이 없습니다.'}</p>
+                                <div className="space-y-2">{renderFormattedText(aiSummary) || <p className="text-sm text-indigo-200">기록이 없습니다.</p>}</div>
                             )}
                         </div>
                         <div className="w-full md:w-1/2 bg-slate-50 p-5 rounded-xl border border-slate-200">
