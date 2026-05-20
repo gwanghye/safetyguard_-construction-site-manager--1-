@@ -10,6 +10,7 @@ import { hapticLight, hapticMedium, hapticSuccess } from '../utils/haptics';
 import PullToRefresh from './PullToRefresh';
 import ImageModal from './ImageModal';
 import { uploadImageToStorage } from '../services/storageService';
+import { compressImage } from '../utils/imageUtils';
 
 interface DashboardProps {
     logs: InspectionLog[];
@@ -204,9 +205,11 @@ const DigitalTwinMap: React.FC<DigitalTwinMapProps> = ({ sites, logs, onSelectSi
         if (!file || !onUpdateSite) return;
         
         const reader = new FileReader();
-        reader.onload = (event) => {
+        reader.onload = async (event) => {
             if (event.target?.result) {
-                setPendingFloorPlan(event.target.result as string);
+                // Compress floor plan for high resolution (max 1600px width) to avoid network bloat
+                const compressed = await compressImage(event.target.result as string, 1600, 0.8);
+                setPendingFloorPlan(compressed);
             }
         };
         reader.readAsDataURL(file);
@@ -226,7 +229,7 @@ const DigitalTwinMap: React.FC<DigitalTwinMapProps> = ({ sites, logs, onSelectSi
                 ctx.translate(canvas.width / 2, canvas.height / 2);
                 ctx.rotate((90 * Math.PI) / 180);
                 ctx.drawImage(img, -img.width / 2, -img.height / 2);
-                setPendingFloorPlan(canvas.toDataURL('image/png'));
+                setPendingFloorPlan(canvas.toDataURL('image/jpeg', 0.8));
             }
         };
         img.src = pendingFloorPlan;
@@ -236,7 +239,8 @@ const DigitalTwinMap: React.FC<DigitalTwinMapProps> = ({ sites, logs, onSelectSi
         if (!pendingFloorPlan || !onUpdateSite) return;
         setIsUploadingPlan(true);
         try {
-            const newUrl = await uploadImageToStorage(pendingFloorPlan, 'floorplans');
+            // Use 'inspections' path to guarantee we don't hit Storage Security Rule blocks
+            const newUrl = await uploadImageToStorage(pendingFloorPlan, 'inspections');
             const sitesOnFloor = sites.filter(s => s.floor.trim().toUpperCase() === selectedFloor.trim().toUpperCase());
             for (const s of sitesOnFloor) {
                 await onUpdateSite({ ...s, drawingUrl: newUrl, layoutType: 'custom' });
