@@ -26,14 +26,31 @@ const fetchAsBase64 = async (urlOrBase64: string): Promise<string> => {
 };
 
 export const generateDailySafetySummary = async (logs: InspectionLog[], dateStr?: string): Promise<string> => {
-  const datePrefix = dateStr ? `[보고서 날짜: ${dateStr}]\n위 보고서 날짜(${dateStr})를 기준으로 일일 안전 브리핑을 작성해주세요.\n\n` : '';
+  const formattedDate = dateStr || (() => {
+    const now = new Date();
+    return `${now.getMonth() + 1}월 ${now.getDate()}일`;
+  })();
+
+  const promptInstructions = `
+[작성 지침 - 반드시 준수할 것]
+1. 보고서 제목은 반드시 다음 형식을 한 번만 사용하세요: "### 일일 안전 브리핑 (${formattedDate})"
+   - 절대 'YYYY년 MM월 DD일' 이라는 글자나 템플릿용 텍스트를 그대로 출력하지 마십시오. 반드시 실제 날짜인 "${formattedDate}"로 대체하여 출력하십시오.
+2. 긴 서술형 문단 대신, 아래의 요소를 글머리 기호(bullet points)로 2~3줄씩 핵심만 매우 간결하고 가독성 있게 정리하십시오.
+3. 양식:
+   - **점검 요약**: 오늘 점검 현장 수, 정상/경고 분포
+   - **조치 대상 (경고)**: 경고 조치가 필요한 현장 및 구체적 원인 요약 (없다면 '없음')
+   - **종합 의견**: 오늘 현장 안전 핵심 당부사항 및 등급
+
+[오늘 점검 데이터]
+`;
+
   const logsText = logs.map(log =>
     `[${log.riskLevel}] 현장: ${log.siteName}, 점검자: ${log.inspector}, 특이사항: ${log.notes}, 체크리스트부적합: ${Object.entries(log.checklist).filter(([_, val]) => !val).map(([key]) => key).join(', ')}`
   ).join('\n');
 
   try {
     const generateSummaryAPI = httpsCallable(functions, 'generateDailySafetySummary');
-    const result = await generateSummaryAPI({ logsData: datePrefix + logsText });
+    const result = await generateSummaryAPI({ logsData: promptInstructions + logsText });
     return (result.data as any).summary || "분석 보고서가 생성되지 않았습니다.";
   } catch (error) {
     console.error("Error generating summary:", error);
