@@ -117,6 +117,10 @@ export interface Site {
     SUPPORT_TL?: string[];
     STORE_MANAGER?: string[];
   };
+  layoutType?: string;
+  drawingUrl?: string;
+  mapX?: number;
+  mapY?: number;
 }
 
 export interface InspectionLog {

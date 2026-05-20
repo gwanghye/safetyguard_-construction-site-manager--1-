@@ -37,18 +37,38 @@ const parseInlineMarkdown = (text: string) => {
 const renderFormattedText = (text: string) => {
     if (!text) return null;
 
-    const lines = text.split('\n');
+    // Clean up code block ticks if any
+    const cleanText = text.replace(/```markdown/gi, '').replace(/```/g, '');
+    const lines = cleanText.split('\n');
     const elements: React.ReactNode[] = [];
     let i = 0;
+
+    const isDividerLine = (l: string) => {
+        const trimmed = l.trim();
+        if (!trimmed.includes('|')) return false;
+        const parts = trimmed.split('|').map(p => p.trim());
+        const cleanParts = parts.filter((p, idx) => {
+            if (idx === 0 && p === '') return false;
+            if (idx === parts.length - 1 && p === '') return false;
+            return true;
+        });
+        return cleanParts.length > 0 && cleanParts.every(p => /^[:-]+$/.test(p));
+    };
 
     while (i < lines.length) {
         const line = lines[i];
         const cleanLine = line.trim();
 
         // 1. Markdown Table Parsing
-        if (cleanLine.startsWith('|')) {
+        const nextLine = i + 1 < lines.length ? lines[i + 1] : '';
+        const looksLikeTable = cleanLine.includes('|') && (
+            cleanLine.startsWith('|') || 
+            (nextLine && nextLine.includes('|') && isDividerLine(nextLine))
+        );
+
+        if (looksLikeTable) {
             const tableLines: string[] = [];
-            while (i < lines.length && lines[i].trim().startsWith('|')) {
+            while (i < lines.length && lines[i].includes('|')) {
                 tableLines.push(lines[i].trim());
                 i++;
             }
@@ -58,8 +78,8 @@ const renderFormattedText = (text: string) => {
 
             tableLines.forEach((tLine) => {
                 const parts = tLine.split('|').map(s => s.trim());
-                if (parts[0] === '') parts.shift();
-                if (parts[parts.length - 1] === '') parts.pop();
+                if (parts.length > 0 && parts[0] === '') parts.shift();
+                if (parts.length > 0 && parts[parts.length - 1] === '') parts.pop();
 
                 const isDivider = parts.every(p => /^[:-]+$/.test(p));
                 if (isDivider) {
@@ -70,7 +90,7 @@ const renderFormattedText = (text: string) => {
                 parsedRows.push(parts);
             });
 
-            if (parsedRows.length > 0) {
+                if (parsedRows.length > 0) {
                 let headers: string[] = [];
                 let bodyRows: string[][] = [];
                 if (hasHeaders && parsedRows.length > 0) {
@@ -81,31 +101,31 @@ const renderFormattedText = (text: string) => {
                 }
 
                 elements.push(
-                    <div key={`table-${i}`} className="my-4 overflow-x-auto rounded-xl border border-slate-200/60 shadow-[0_1px_2px_rgba(0,0,0,0.02),0_4px_16px_rgba(0,0,0,0.02)]">
-                        <table className="min-w-full divide-y divide-slate-200">
-                            {headers.length > 0 && (
-                                <thead className="bg-slate-50">
-                                    <tr>
-                                        {headers.map((h, idx) => (
-                                            <th key={idx} className="px-4 py-2.5 text-left text-xs font-bold text-slate-800 tracking-wider">
-                                                {parseInlineMarkdown(h)}
-                                            </th>
-                                        ))}
-                                    </tr>
-                                </thead>
-                            )}
-                            <tbody className="divide-y divide-slate-100 bg-white">
-                                {bodyRows.map((row, rIdx) => (
-                                    <tr key={rIdx} className="hover:bg-slate-50/50 transition-colors">
-                                        {row.map((cell, cIdx) => (
-                                            <td key={cIdx} className="px-4 py-2.5 text-xs text-slate-700 leading-relaxed font-medium">
-                                                {parseInlineMarkdown(cell)}
-                                            </td>
-                                        ))}
-                                    </tr>
+                    <div key={`table-${i}`} className="my-3 rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+                        {/* 헤더 행 (항상 표시) */}
+                        {headers.length > 0 && (
+                            <div className="grid bg-slate-50 border-b border-slate-200" style={{ gridTemplateColumns: `repeat(${headers.length}, minmax(0, 1fr))` }}>
+                                {headers.map((h, idx) => (
+                                    <div key={idx} className="px-3 py-2 text-[10px] font-extrabold text-slate-600 uppercase tracking-wide">
+                                        {parseInlineMarkdown(h)}
+                                    </div>
                                 ))}
-                            </tbody>
-                        </table>
+                            </div>
+                        )}
+                        {/* 데이터 행 */}
+                        {bodyRows.map((row, rIdx) => (
+                            <div
+                                key={rIdx}
+                                className={`grid border-b border-slate-100 last:border-b-0 ${rIdx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}`}
+                                style={{ gridTemplateColumns: `repeat(${Math.max(headers.length || 1, row.length)}, minmax(0, 1fr))` }}
+                            >
+                                {row.map((cell, cIdx) => (
+                                    <div key={cIdx} className="px-3 py-2 text-xs text-slate-700 leading-relaxed font-medium">
+                                        {parseInlineMarkdown(cell)}
+                                    </div>
+                                ))}
+                            </div>
+                        ))}
                     </div>
                 );
             }

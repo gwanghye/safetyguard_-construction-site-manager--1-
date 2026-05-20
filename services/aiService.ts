@@ -1,4 +1,4 @@
-import { InspectionLog } from "../types";
+import { InspectionLog, RiskLevel, Role } from "../types";
 import { functions } from "../firebase";
 import { httpsCallable } from "firebase/functions";
 
@@ -108,10 +108,46 @@ export const analyzeSafetyPhoto = async (base64Image: string): Promise<{ risk: s
 export const generateProjectFinalReport = async (site: { name: string, department: string }, logs: InspectionLog[]): Promise<string> => {
   if (logs.length === 0) return "점검 이력이 없어 평가를 진행할 수 없습니다.";
 
-  const siteText = `- 공사명: ${site.name}\n- 부서: ${site.department}`;
-  const logsText = logs.map(log =>
-    `[${new Date(log.timestamp).toLocaleDateString()}] 주체: ${log.inspectorRole}, 위험도: ${log.riskLevel}, 특이사항: ${log.notes || '없음'}, 체크리스트부적합: ${Object.entries(log.checklist).filter(([_, val]) => !val).map(([key]) => key).join(', ') || '없음'}`
-  ).join('\n');
+  // Calculate statistics programmatically - 100% accurate, no hallucination
+  const facilityLogs = logs.filter(l => l.inspectorRole === Role.FACILITY || String(l.inspectorRole).toUpperCase() === 'FACILITY');
+  const safetyLogs = logs.filter(l => l.inspectorRole === Role.SAFETY || String(l.inspectorRole).toUpperCase() === 'SAFETY');
+  const salesLogs = logs.filter(l => l.inspectorRole === Role.SALES || String(l.inspectorRole).toUpperCase() === 'SALES');
+
+  const fNormal = facilityLogs.filter(l => l.riskLevel === RiskLevel.NORMAL).length;
+  const sNormal = safetyLogs.filter(l => l.riskLevel === RiskLevel.NORMAL).length;
+  const slNormal = salesLogs.filter(l => l.riskLevel === RiskLevel.NORMAL).length;
+
+  // Build significant issue snippets from logs (max 5)
+  const warningSnippets = logs
+    .filter(l => l.riskLevel !== RiskLevel.NORMAL && l.notes)
+    .slice(0, 5)
+    .map(l => `[${l.inspectorRole}] ${l.notes || ''}`)
+    .join(' / ');
+
+  // Pre-build the fixed template — only [OPINION] needs AI
+  const siteText = `
+[지침] 당신은 안전관제 보고서 AI입니다. 아래 완성된 보고서 양식에서 [OPINION] 부분만 1~2문장으로 채워주세요. 
+- 서명, 결어, 인사말, 코드블록(⋯) 절대 금지.
+- [OPINION] 외 다른 텍스트는 절대 추가하지 마세요. 양식 그대로 출력하세요.
+
+[보고서 양식]
+### 공사 개요
+- **공사명**: ${site.name}
+- **담당부서**: ${site.department}
+- **총 점검 횟수**: ${logs.length}회
+
+### 종합 점검 통계
+| 구분 | 점검 | 정상 | 경고/주의 |
+| --- | --- | --- | --- |
+| 시설팀 | ${facilityLogs.length}회 | ${fNormal}회 | ${facilityLogs.length - fNormal}회 |
+| 안전팀 | ${safetyLogs.length}회 | ${sNormal}회 | ${safetyLogs.length - sNormal}회 |
+| 영업팀 | ${salesLogs.length}회 | ${slNormal}회 | ${salesLogs.length - slNormal}회 |
+
+### 핵심 안전 의견
+[OPINION]
+`;
+
+  const logsText = warningSnippets ? `주요 특이사항: ${warningSnippets}` : '특이사항 없음';
 
   try {
     const generateReportAPI = httpsCallable(functions, 'generateProjectFinalReport');

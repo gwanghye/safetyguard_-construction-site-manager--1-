@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { InspectionLog, RiskLevel, Site, Role, RiskAssessmentLog, RiskAssessmentStatus } from '../types';
-import { RefreshCw, BrainCircuit, Plus, X, LayoutGrid, ListChecks, Hammer, Edit, CheckCircle2, AlertCircle, Clock, Trash2, Ban, CalendarClock, AlertTriangle, BarChart3, ShieldAlert, Activity, Check, Send, PhoneCall, Smartphone, UserPlus, Minus, FileText, ChevronRight, FileCheck } from 'lucide-react';
+import { RefreshCw, BrainCircuit, Plus, X, LayoutGrid, ListChecks, Hammer, Edit, CheckCircle2, AlertCircle, Clock, Trash2, Ban, CalendarClock, AlertTriangle, BarChart3, ShieldAlert, Activity, Check, Send, PhoneCall, Smartphone, UserPlus, Minus, FileText, ChevronRight, FileCheck, Map, Upload } from 'lucide-react';
 import { RiskAssessment } from './RiskAssessment';
 import { generateDailySafetySummary, validateCorrectiveAction } from '../services/aiService';
 import { updateLog } from '../services/firestore';
@@ -114,6 +114,205 @@ const BeforeAfterSlider: React.FC<BeforeAfterSliderProps> = ({ beforeImg, afterI
     );
 };
 
+const DefaultFloorPlan: React.FC = () => (
+    <svg viewBox="0 0 400 300" className="w-full h-full stroke-slate-700/60 fill-none stroke-[1.5]">
+        {/* Outer boundary */}
+        <rect x="10" y="10" width="380" height="280" rx="8" className="stroke-indigo-500/20 fill-slate-900/50" />
+        
+        {/* Department Sections / Zones */}
+        <g className="opacity-80">
+            {/* Zone A: Luxury / Premium */}
+            <rect x="25" y="25" width="90" height="50" rx="6" className="stroke-indigo-500/30 fill-indigo-950/20" />
+            <text x="70" y="55" className="text-[7px] font-bold fill-indigo-400/80 stroke-none" textAnchor="middle">LUXURY ZONE</text>
+            
+            {/* Zone B: Apparel / Fashion */}
+            <rect x="130" y="25" width="100" height="50" rx="6" className="stroke-indigo-500/30 fill-indigo-950/20" />
+            <text x="180" y="55" className="text-[7px] font-bold fill-indigo-400/80 stroke-none" textAnchor="middle">FASHION ZONE</text>
+            
+            {/* Zone C: Food Court / F&B */}
+            <rect x="245" y="25" width="130" height="50" rx="6" className="stroke-indigo-500/30 fill-indigo-950/20" />
+            <text x="310" y="55" className="text-[7px] font-bold fill-indigo-400/80 stroke-none" textAnchor="middle">F&B COURT</text>
+            
+            {/* Central Aisle layout */}
+            <path d="M 25,95 L 375,95 M 25,165 L 375,165" className="stroke-indigo-500/10 stroke-[2] stroke-dasharray-[2_4]" />
+            
+            {/* Zone D: Electronics / Home */}
+            <rect x="25" y="110" width="140" height="45" rx="6" className="stroke-indigo-500/30 fill-indigo-950/20" />
+            <text x="95" y="135" className="text-[7px] font-bold fill-indigo-400/80 stroke-none" textAnchor="middle">DIGITAL SQUARE</text>
+            
+            {/* Zone E: Cosmetics / Beauty */}
+            <rect x="180" y="110" width="195" height="45" rx="6" className="stroke-indigo-500/30 fill-indigo-950/20" />
+            <text x="277" y="135" className="text-[7px] font-bold fill-indigo-400/80 stroke-none" textAnchor="middle">BEAUTY & HEALTH</text>
+            
+            {/* Escalators and elevators */}
+            <g transform="translate(170, 195)" className="stroke-indigo-400/80">
+                <rect x="0" y="0" width="60" height="80" rx="8" className="fill-indigo-950/50 stroke-indigo-500/30" />
+                <path d="M 10,20 L 50,60 M 10,60 L 50,20 M 15,10 L 45,10 M 15,70 L 45,70" className="stroke-[1.5]" />
+                <text x="30" y="45" className="text-[8px] font-extrabold fill-indigo-300 stroke-none" textAnchor="middle">CORE / ES</text>
+            </g>
+        </g>
+        
+        {/* Entrance Gates */}
+        <path d="M 10,210 L 10,260" className="stroke-emerald-500/60 stroke-[3]" />
+        <text x="25" y="240" className="text-[8px] font-black fill-emerald-400 stroke-none">GATE 1</text>
+    </svg>
+);
+
+interface DigitalTwinMapProps {
+    sites: Site[];
+    logs: InspectionLog[];
+    onSelectSite: (siteId: string) => void;
+}
+
+const DigitalTwinMap: React.FC<DigitalTwinMapProps> = ({ sites, logs, onSelectSite }) => {
+    const [selectedFloor, setSelectedFloor] = useState<string>('1F');
+
+    const activeSites = sites.filter(s => s.status !== '완료');
+    
+    const floorSites = activeSites.filter(s => {
+        const floorClean = s.floor.trim().toUpperCase();
+        const selectedClean = selectedFloor.trim().toUpperCase();
+        return floorClean === selectedClean;
+    });
+
+    const availableFloors = Array.from(new Set(['1F', '2F', 'B1', ...sites.map(s => s.floor.trim().toUpperCase())])).sort();
+
+    return (
+        <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 space-y-4">
+            <div className="flex justify-between items-center">
+                <div>
+                    <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-indigo-600 animate-pulse" />
+                        실시간 3D 디지털 트윈 입체 도면 (Advanced Floor Mapping)
+                    </h3>
+                    <p className="text-[11px] text-slate-500 font-medium">현장 구역별 실시간 위험 요소를 3차원 입체 도면으로 실시간 관제합니다.</p>
+                </div>
+                
+                {/* Floor Selector Pills */}
+                <div className="flex gap-1 bg-slate-100 p-1 rounded-lg">
+                    {availableFloors.map(fl => (
+                        <button
+                            key={fl}
+                            type="button"
+                            onClick={() => setSelectedFloor(fl)}
+                            className={`px-2.5 py-1 text-[11px] font-bold rounded-md transition-all ${
+                                selectedFloor === fl 
+                                    ? 'bg-white text-indigo-600 shadow-sm' 
+                                    : 'text-slate-500 hover:text-slate-800'
+                            }`}
+                        >
+                            {fl}
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            {/* Isometric Map Arena */}
+            <div className="relative w-full h-[320px] bg-slate-950 rounded-xl overflow-hidden flex items-center justify-center border border-slate-800 shadow-inner select-none">
+                {/* Background Grid Pattern */}
+                <div className="absolute inset-0 bg-[linear-gradient(to_right,#1e293b_1px,transparent_1px),linear-gradient(to_bottom,#1e293b_1px,transparent_1px)] bg-[size:24px_24px] opacity-25" />
+
+                {/* Ambient Glow */}
+                <div className="absolute w-[200px] h-[200px] bg-indigo-600/10 rounded-full blur-[80px] pointer-events-none" />
+
+                {/* 3D Perspective Wrapper */}
+                <div 
+                    className="relative w-[360px] h-[270px] transition-transform duration-700 ease-out"
+                    style={{ 
+                        transform: 'perspective(800px) rotateX(55deg) rotateZ(-40deg)',
+                        transformStyle: 'preserve-3d'
+                    }}
+                >
+                    {/* The Floor Plan Base */}
+                    <div className="absolute inset-0 bg-slate-900/80 rounded-xl border border-indigo-500/40 p-2 shadow-2xl overflow-hidden flex items-center justify-center">
+                        {floorSites.length > 0 && floorSites[0].drawingUrl ? (
+                            <img 
+                                src={floorSites[0].drawingUrl} 
+                                alt="Floor Plan" 
+                                className="w-full h-full object-contain filter invert opacity-80" 
+                            />
+                        ) : (
+                            <DefaultFloorPlan />
+                        )}
+                    </div>
+
+                    {/* Site Markers */}
+                    {floorSites.map(site => {
+                        const siteLogs = logs.filter(l => l.siteId === site.id);
+                        const hasWarning = siteLogs.some(l => l.riskLevel === '경고' && l.action?.status !== 'RESOLVED');
+                        const hasCaution = siteLogs.some(l => l.riskLevel === '주의' && l.action?.status !== 'RESOLVED');
+                        
+                        const x = site.mapX !== undefined ? site.mapX : 50;
+                        const y = site.mapY !== undefined ? site.mapY : 50;
+
+                        return (
+                            <div 
+                                key={site.id}
+                                className="absolute cursor-pointer group"
+                                style={{ 
+                                    left: `${x}%`, 
+                                    top: `${y}%`,
+                                    transform: 'translate(-50%, -50%)',
+                                    transformStyle: 'preserve-3d'
+                                }}
+                                onClick={() => onSelectSite(site.id)}
+                            >
+                                {/* 3D Counter-Rotated Pin standing upright */}
+                                <div 
+                                    className="relative flex flex-col items-center"
+                                    style={{ 
+                                        transform: 'rotateZ(40deg) rotateX(-55deg) translateZ(10px)',
+                                        transformStyle: 'preserve-3d'
+                                    }}
+                                >
+                                    {/* Hover tooltip label */}
+                                    <div className="absolute bottom-8 bg-slate-900/90 text-white border border-slate-700 text-[9px] font-bold px-2 py-1 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-30">
+                                        {site.name} ({site.location || '세부위치 미지정'})
+                                    </div>
+
+                                    {/* Vertical Pole Indicator */}
+                                    <div className="w-[1.5px] h-6 bg-indigo-400/80 shadow-md" />
+
+                                    {/* Floating Glowing Sphere */}
+                                    <div className={`w-4 h-4 rounded-full flex items-center justify-center shadow-lg border border-white/40 transition-transform group-hover:scale-125 duration-200 text-white font-extrabold text-[7px] ${
+                                        hasWarning 
+                                            ? 'bg-rose-500 animate-pulse ring-4 ring-rose-500/50' 
+                                            : hasCaution 
+                                                ? 'bg-amber-500 ring-4 ring-amber-500/30' 
+                                                : 'bg-indigo-500 ring-4 ring-indigo-500/20'
+                                    }`}>
+                                        {site.floor}
+                                    </div>
+
+                                    {/* Ground Projection Ring (Ripple effect) */}
+                                    <div 
+                                        className="absolute top-6 w-8 h-8 rounded-full border opacity-60 pointer-events-none transform -translate-y-1/2 scale-y-[0.5]"
+                                        style={{ 
+                                            borderColor: hasWarning ? '#ef4444' : hasCaution ? '#f59e0b' : '#6366f1',
+                                            transform: 'scale(1)',
+                                            animation: 'ping 2s cubic-bezier(0, 0, 0.2, 1) infinite'
+                                        }}
+                                    />
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+            
+            {/* Map Legend */}
+            <div className="flex flex-wrap gap-4 items-center justify-between text-[10px] text-slate-500 font-bold bg-slate-50 p-2.5 rounded-xl border border-slate-100/50">
+                <div className="flex gap-4 items-center">
+                    <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse" /> 경고 발생 구역 (Warning)</span>
+                    <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-amber-500" /> 주의 필요 구역 (Caution)</span>
+                    <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-indigo-500" /> 정상 공사 현장 (Normal)</span>
+                </div>
+                <span className="text-slate-400">* 마커 오버 시 상세명 표시, 마커 클릭 시 해당 카드 위치로 스크롤 이동합니다.</span>
+            </div>
+        </div>
+    );
+};
+
 const parseInlineMarkdownDark = (text: string) => {
     const parts = text.split('**');
     return parts.map((part, i) => {
@@ -127,18 +326,38 @@ const parseInlineMarkdownDark = (text: string) => {
 const renderFormattedText = (text: string) => {
     if (!text) return null;
 
-    const lines = text.split('\n');
+    // Clean up code block ticks if any
+    const cleanText = text.replace(/```markdown/gi, '').replace(/```/g, '');
+    const lines = cleanText.split('\n');
     const elements: React.ReactNode[] = [];
     let i = 0;
+
+    const isDividerLine = (l: string) => {
+        const trimmed = l.trim();
+        if (!trimmed.includes('|')) return false;
+        const parts = trimmed.split('|').map(p => p.trim());
+        const cleanParts = parts.filter((p, idx) => {
+            if (idx === 0 && p === '') return false;
+            if (idx === parts.length - 1 && p === '') return false;
+            return true;
+        });
+        return cleanParts.length > 0 && cleanParts.every(p => /^[:-]+$/.test(p));
+    };
 
     while (i < lines.length) {
         const line = lines[i];
         const cleanLine = line.trim();
 
         // 1. Markdown Table Parsing
-        if (cleanLine.startsWith('|')) {
+        const nextLine = i + 1 < lines.length ? lines[i + 1] : '';
+        const looksLikeTable = cleanLine.includes('|') && (
+            cleanLine.startsWith('|') || 
+            (nextLine && nextLine.includes('|') && isDividerLine(nextLine))
+        );
+
+        if (looksLikeTable) {
             const tableLines: string[] = [];
-            while (i < lines.length && lines[i].trim().startsWith('|')) {
+            while (i < lines.length && lines[i].includes('|')) {
                 tableLines.push(lines[i].trim());
                 i++;
             }
@@ -148,8 +367,8 @@ const renderFormattedText = (text: string) => {
 
             tableLines.forEach((tLine) => {
                 const parts = tLine.split('|').map(s => s.trim());
-                if (parts[0] === '') parts.shift();
-                if (parts[parts.length - 1] === '') parts.pop();
+                if (parts.length > 0 && parts[0] === '') parts.shift();
+                if (parts.length > 0 && parts[parts.length - 1] === '') parts.pop();
 
                 const isDivider = parts.every(p => /^[:-]+$/.test(p));
                 if (isDivider) {
@@ -171,31 +390,31 @@ const renderFormattedText = (text: string) => {
                 }
 
                 elements.push(
-                    <div key={`table-${i}`} className="my-4 overflow-x-auto rounded-xl border border-indigo-800/60 shadow-[0_1px_2px_rgba(0,0,0,0.1),0_4px_16px_rgba(0,0,0,0.1)]">
-                        <table className="min-w-full divide-y divide-indigo-800/60">
-                            {headers.length > 0 && (
-                                <thead className="bg-indigo-950/70">
-                                    <tr>
-                                        {headers.map((h, idx) => (
-                                            <th key={idx} className="px-4 py-2.5 text-left text-xs font-bold text-white tracking-wider">
-                                                {parseInlineMarkdownDark(h)}
-                                            </th>
-                                        ))}
-                                    </tr>
-                                </thead>
-                            )}
-                            <tbody className="divide-y divide-indigo-800/40 bg-indigo-900/50">
-                                {bodyRows.map((row, rIdx) => (
-                                    <tr key={rIdx} className="hover:bg-white/5 transition-colors">
-                                        {row.map((cell, cIdx) => (
-                                            <td key={cIdx} className="px-4 py-2.5 text-xs text-indigo-100 leading-relaxed font-medium">
-                                                {parseInlineMarkdownDark(cell)}
-                                            </td>
-                                        ))}
-                                    </tr>
+                    <div key={`table-${i}`} className="my-3 rounded-xl border border-indigo-800/60 overflow-hidden shadow-md">
+                        {/* 헤더 행 */}
+                        {headers.length > 0 && (
+                            <div className="grid bg-indigo-950/70 border-b border-indigo-800/40" style={{ gridTemplateColumns: `repeat(${headers.length}, minmax(0, 1fr))` }}>
+                                {headers.map((h, idx) => (
+                                    <div key={idx} className="px-3 py-2 text-[10px] font-extrabold text-indigo-200 uppercase tracking-wide">
+                                        {parseInlineMarkdownDark(h)}
+                                    </div>
                                 ))}
-                            </tbody>
-                        </table>
+                            </div>
+                        )}
+                        {/* 데이터 행 */}
+                        {bodyRows.map((row, rIdx) => (
+                            <div
+                                key={rIdx}
+                                className={`grid border-b border-indigo-800/20 last:border-b-0 ${rIdx % 2 === 0 ? 'bg-indigo-900/50' : 'bg-indigo-900/30'}`}
+                                style={{ gridTemplateColumns: `repeat(${Math.max(headers.length || 1, row.length)}, minmax(0, 1fr))` }}
+                            >
+                                {row.map((cell, cIdx) => (
+                                    <div key={cIdx} className="px-3 py-2 text-xs text-indigo-100 leading-relaxed font-medium">
+                                        {parseInlineMarkdownDark(cell)}
+                                    </div>
+                                ))}
+                            </div>
+                        ))}
                     </div>
                 );
             }
@@ -257,6 +476,7 @@ const Dashboard: React.FC<DashboardProps> = ({ logs, sites, assessments, onAddSi
     const [loadingAi, setLoadingAi] = useState(false);
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
     const [showSiteForm, setShowSiteForm] = useState(false);
+    const [drawingModalSite, setDrawingModalSite] = useState<Site | null>(null);
     const [isEditing, setIsEditing] = useState(false);
 
     const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
@@ -281,6 +501,17 @@ const Dashboard: React.FC<DashboardProps> = ({ logs, sites, assessments, onAddSi
         const day = String(now.getDate()).padStart(2, '0');
         return `${year}-${month}-${day}`;
     });
+
+    const scrollToSite = (siteId: string) => {
+        const el = document.getElementById(`site-card-${siteId}`);
+        if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            el.classList.add('ring-4', 'ring-indigo-500/80', 'transition-all', 'duration-300');
+            setTimeout(() => {
+                el.classList.remove('ring-4', 'ring-indigo-500/80');
+            }, 2500);
+        }
+    };
 
     const todayDate = new Date();
     todayDate.setHours(0, 0, 0, 0);
@@ -357,7 +588,11 @@ const Dashboard: React.FC<DashboardProps> = ({ logs, sites, assessments, onAddSi
                 SALES_TL: [''],
                 SUPPORT_TL: [''],
                 STORE_MANAGER: ['']
-            } 
+            },
+            layoutType: 'rectangular',
+            drawingUrl: '',
+            mapX: 50,
+            mapY: 50
         });
         setIsEditing(false);
         setShowSiteForm(true);
@@ -414,6 +649,22 @@ const Dashboard: React.FC<DashboardProps> = ({ logs, sites, assessments, onAddSi
         }
     };
 
+    const handleSvgUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            if (event.target?.result) {
+                setSiteForm(prev => ({
+                    ...prev,
+                    drawingUrl: event.target.result as string
+                }));
+            }
+        };
+        reader.readAsDataURL(file);
+    };
+
     const handleFormSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (siteForm.name && siteForm.department && siteForm.startDate && siteForm.endDate) {
@@ -439,7 +690,11 @@ const Dashboard: React.FC<DashboardProps> = ({ logs, sites, assessments, onAddSi
                     startDate: siteForm.startDate,
                     endDate: siteForm.endDate,
                     status: siteForm.status || '대기',
-                    managerPhones: cleanPhones
+                    managerPhones: cleanPhones,
+                    layoutType: siteForm.layoutType || 'rectangular',
+                    drawingUrl: siteForm.drawingUrl || '',
+                    mapX: siteForm.mapX !== undefined ? siteForm.mapX : 50,
+                    mapY: siteForm.mapY !== undefined ? siteForm.mapY : 50
                 };
                 onUpdateSite(updatedSite);
             } else if (!isEditing && onAddSite) {
@@ -453,7 +708,11 @@ const Dashboard: React.FC<DashboardProps> = ({ logs, sites, assessments, onAddSi
                     startDate: siteForm.startDate!,
                     endDate: siteForm.endDate!,
                     status: '대기',
-                    managerPhones: cleanPhones
+                    managerPhones: cleanPhones,
+                    layoutType: siteForm.layoutType || 'rectangular',
+                    drawingUrl: siteForm.drawingUrl || '',
+                    mapX: siteForm.mapX !== undefined ? siteForm.mapX : 50,
+                    mapY: siteForm.mapY !== undefined ? siteForm.mapY : 50
                 };
                 onAddSite(site);
             }
@@ -779,6 +1038,8 @@ const Dashboard: React.FC<DashboardProps> = ({ logs, sites, assessments, onAddSi
                         </div>
                     </div>
 
+                    <DigitalTwinMap sites={sites} logs={logs} onSelectSite={scrollToSite} />
+
                     <div className="space-y-4">
                         <div className="flex justify-between items-center px-1">
                             <h3 className="font-bold text-slate-800 text-lg">실시간 현장별 모니터링</h3>
@@ -801,7 +1062,7 @@ const Dashboard: React.FC<DashboardProps> = ({ logs, sites, assessments, onAddSi
                                 const isMissingSomething = status !== 'expired' && (!facilityLog || !safetyLog || !salesLog);
 
                                 return (
-                                    <div key={site.id} className={`bg-white rounded-xl border shadow-sm overflow-hidden ${status === 'expired' ? 'opacity-60 grayscale-[0.5] order-last' : 'border-slate-200'}`}>
+                                    <div key={site.id} id={`site-card-${site.id}`} className={`bg-white rounded-xl border shadow-sm overflow-hidden ${status === 'expired' ? 'opacity-60 grayscale-[0.5] order-last' : 'border-slate-200'}`}>
                                         <div className="p-4 border-b border-slate-100">
                                             <div className="flex justify-between items-start mb-3">
                                                 <div className="flex items-start gap-3">
@@ -1061,7 +1322,10 @@ const Dashboard: React.FC<DashboardProps> = ({ logs, sites, assessments, onAddSi
                                                 </div>
                                             </div>
                                         </div>
-                                        <div className="flex items-center gap-2 self-end sm:self-auto">
+                                        <div className="flex items-center gap-2 self-end sm:self-auto flex-wrap justify-end">
+                                            <button onClick={() => setDrawingModalSite(site)} className="px-3 py-1.5 text-sm text-slate-600 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg transition-colors font-medium flex items-center gap-1">
+                                                <Map size={14} /> 도면 보기
+                                            </button>
                                             <button onClick={() => openEditForm(site)} className="px-3 py-1.5 text-sm text-slate-600 bg-slate-100 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors font-medium flex items-center gap-1">
                                                 <Edit size={14} /> 수정/연락처
                                             </button>
@@ -1182,6 +1446,94 @@ const Dashboard: React.FC<DashboardProps> = ({ logs, sites, assessments, onAddSi
                                     ))}
                                 </div>
                             </div>
+                            {/* 도면 디자인 및 위치 설정 (Advanced Floor Mapping) */}
+                            <div className="mt-6 pt-4 border-t border-slate-100">
+                                <h4 className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
+                                    <Map size={16} className="text-indigo-500"/> 3D 입체 도면 매핑 및 위치 설정
+                                </h4>
+                                <div className="space-y-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-500 mb-1">도면 유형 (Floor Layout Template)</label>
+                                        <select 
+                                            className="w-full p-3 border rounded-lg bg-white text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500" 
+                                            value={siteForm.layoutType || 'rectangular'} 
+                                            onChange={e => setSiteForm({ ...siteForm, layoutType: e.target.value })}
+                                        >
+                                            <option value="rectangular">표준형 직사각형 레이아웃 (Layout A)</option>
+                                            <option value="l_shape">중앙 통로 L자형 레이아웃 (Layout B)</option>
+                                            <option value="corner">코너 다각형 레이아웃 (Layout C)</option>
+                                            <option value="custom">사용자 직접 업로드 도면 (SVG)</option>
+                                        </select>
+                                    </div>
+                                    
+                                    {siteForm.layoutType === 'custom' ? (
+                                        <div className="space-y-2">
+                                            <label className="block text-xs font-bold text-slate-500 mb-1">도면 파일 업로드 (SVG 파일 선택)</label>
+                                            <div className="flex items-center gap-2">
+                                                <label className="flex items-center gap-1.5 px-3 py-2 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg cursor-pointer text-xs font-bold text-slate-600 transition-colors shadow-sm">
+                                                    <Upload size={14} className="text-indigo-500" />
+                                                    파일 선택
+                                                    <input 
+                                                        type="file" 
+                                                        accept=".svg" 
+                                                        onChange={handleSvgUpload}
+                                                        className="hidden"
+                                                    />
+                                                </label>
+                                                <span className="text-[10px] text-slate-400 truncate max-w-[200px]">
+                                                    {siteForm.drawingUrl ? '✓ SVG 도면이 메모리에 로드되었습니다.' : '선택된 파일 없음'}
+                                                </span>
+                                            </div>
+                                            {siteForm.drawingUrl && (
+                                                <div className="relative w-full h-[120px] bg-slate-900 rounded-lg overflow-hidden border border-slate-200 flex items-center justify-center p-2">
+                                                    <img src={siteForm.drawingUrl} alt="Preview" className="max-h-full max-w-full object-contain filter invert opacity-80" />
+                                                    <button 
+                                                        type="button" 
+                                                        onClick={() => setSiteForm(prev => ({ ...prev, drawingUrl: '' }))}
+                                                        className="absolute top-1 right-1 p-1 bg-black/60 hover:bg-black/80 rounded-full text-white text-[10px]"
+                                                    >
+                                                        ✕ 제거
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <div className="text-[10px] text-slate-500 font-semibold bg-indigo-50/50 p-2.5 rounded-lg border border-indigo-100/50">
+                                            💡 선택한 점포 표준형 레이아웃 템플릿에 맞추어 현장의 3D 디지털 트윈 지도가 자동 구성됩니다.
+                                        </div>
+                                    )}
+
+                                    {/* 2D Grid Coordinates Mapping */}
+                                    <div className="space-y-2">
+                                        <div className="flex justify-between items-center">
+                                            <label className="block text-xs font-bold text-slate-500">도면 내 가로/세로 위치 매핑 (X: {siteForm.mapX !== undefined ? siteForm.mapX : 50}%, Y: {siteForm.mapY !== undefined ? siteForm.mapY : 50}%)</label>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div className="space-y-1">
+                                                <span className="text-[10px] font-bold text-slate-400">가로 좌표 (Left)</span>
+                                                <input 
+                                                    type="range" 
+                                                    min="5" max="95" 
+                                                    className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600" 
+                                                    value={siteForm.mapX !== undefined ? siteForm.mapX : 50} 
+                                                    onChange={e => setSiteForm({ ...siteForm, mapX: Number(e.target.value) })}
+                                                />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <span className="text-[10px] font-bold text-slate-400">세로 좌표 (Top)</span>
+                                                <input 
+                                                    type="range" 
+                                                    min="5" max="95" 
+                                                    className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600" 
+                                                    value={siteForm.mapY !== undefined ? siteForm.mapY : 50} 
+                                                    onChange={e => setSiteForm({ ...siteForm, mapY: Number(e.target.value) })}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
                             <button type="submit" className="w-full bg-slate-900 text-white py-4 rounded-xl font-bold mt-4 shadow-lg active:scale-95 transition-transform">
                                 {isEditing ? '수정 임시 저장' : '현장 및 연락처 세팅 완료'}
                             </button>
@@ -1253,6 +1605,82 @@ const Dashboard: React.FC<DashboardProps> = ({ logs, sites, assessments, onAddSi
 
             {selectedImage && (
                 <ImageModal imageUrls={[selectedImage]} onClose={() => setSelectedImage(null)} />
+            )}
+
+            {/* 🗺️ 도면 미리보기 모달 */}
+            {drawingModalSite && (
+                <div className="fixed inset-0 z-[80] bg-black/70 flex items-center justify-center p-4" onClick={() => setDrawingModalSite(null)}>
+                    <div className="bg-white w-full max-w-lg rounded-2xl p-5 shadow-2xl" onClick={e => e.stopPropagation()}>
+                        <div className="flex justify-between items-center mb-4">
+                            <div>
+                                <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                                    <Map size={16} className="text-indigo-500" /> {drawingModalSite.name} 도면
+                                </h3>
+                                <p className="text-xs text-slate-500 mt-0.5">{drawingModalSite.floor} · {drawingModalSite.department} · {drawingModalSite.location}</p>
+                            </div>
+                            <button onClick={() => setDrawingModalSite(null)} className="p-2 hover:bg-slate-100 rounded-full text-slate-500">
+                                <X size={18} />
+                            </button>
+                        </div>
+
+                        {/* 도면 유형 정보 */}
+                        <div className="flex gap-2 mb-4 text-[11px]">
+                            <span className="bg-indigo-50 text-indigo-700 font-bold px-2 py-1 rounded-lg">
+                                {drawingModalSite.layoutType === 'custom' ? '📐 사용자 업로드 도면' 
+                                 : drawingModalSite.layoutType === 'l_shape' ? '🔲 L자형 레이아웃'
+                                 : drawingModalSite.layoutType === 'corner' ? '🔳 코너 다각형 레이아웃'
+                                 : '⬜ 표준형 직사각형 레이아웃'}
+                            </span>
+                            {drawingModalSite.mapX !== undefined && drawingModalSite.mapY !== undefined && (
+                                <span className="bg-slate-50 text-slate-500 font-bold px-2 py-1 rounded-lg border border-slate-100">
+                                    위치 X:{drawingModalSite.mapX}% Y:{drawingModalSite.mapY}%
+                                </span>
+                            )}
+                        </div>
+
+                        {/* 도면 뷰 */}
+                        <div className="relative w-full bg-slate-950 rounded-xl overflow-hidden border border-slate-800" style={{ paddingBottom: '66%' }}>
+                            <div className="absolute inset-0 flex items-center justify-center p-4">
+                                {drawingModalSite.drawingUrl ? (
+                                    <img
+                                        src={drawingModalSite.drawingUrl}
+                                        alt="Floor Plan"
+                                        className="max-w-full max-h-full object-contain filter invert opacity-90"
+                                    />
+                                ) : (
+                                    <div className="w-full h-full flex flex-col items-center justify-center">
+                                        <DefaultFloorPlan />
+                                        <div className="absolute bottom-3 left-0 right-0 text-center">
+                                            <span className="text-[10px] font-bold text-slate-500 bg-slate-900/80 px-2 py-1 rounded">표준 도면 템플릿 (현장 수정 &gt; 도면 탭에서 SVG 업로드 가능)</span>
+                                        </div>
+                                    </div>
+                                )}
+                                {/* 위치 마커 */}
+                                {drawingModalSite.mapX !== undefined && drawingModalSite.mapY !== undefined && (
+                                    <div
+                                        className="absolute w-5 h-5 rounded-full bg-rose-500 border-2 border-white shadow-lg flex items-center justify-center animate-pulse"
+                                        style={{
+                                            left: `${drawingModalSite.mapX}%`,
+                                            top: `${drawingModalSite.mapY}%`,
+                                            transform: 'translate(-50%, -50%)',
+                                        }}
+                                    >
+                                        <div className="w-1.5 h-1.5 rounded-full bg-white" />
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="mt-4 text-center">
+                            <button
+                                onClick={() => { setDrawingModalSite(null); openEditForm(drawingModalSite); }}
+                                className="text-xs text-indigo-600 font-bold hover:underline flex items-center gap-1 mx-auto"
+                            >
+                                <Edit size={11} /> 도면 및 위치 수정하기 (현장 수정 탭)
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
         </PullToRefresh>
