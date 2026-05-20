@@ -7,7 +7,7 @@ import HQDashboard from './components/HQDashboard';
 import SiteDetail from './components/SiteDetail';
 import { RiskAssessment } from './components/RiskAssessment';
 import { ApprovalDashboard, ApproverRole } from './components/ApprovalDashboard';
-import { LayoutDashboard, HardHat, Bell, Building2, ChevronRight, MapPin, ShieldCheck, LogOut, Lock, X, KeyRound, Store as StoreIcon, ArrowLeft, Search, ShoppingBag, Briefcase, Globe, FileCheck } from 'lucide-react';
+import { LayoutDashboard, HardHat, Bell, Building2, ChevronRight, MapPin, ShieldCheck, LogOut, Lock, X, KeyRound, Store as StoreIcon, ArrowLeft, Search, ShoppingBag, Briefcase, Globe, FileCheck, Sun, Moon } from 'lucide-react';
 import { subscribeToSites, subscribeToLogs, addSite, updateSite, deleteSite, addLog, subscribeToRiskAssessments } from './services/firestore';
 
 // --- Mock Data (초기 데이터) ---
@@ -47,6 +47,21 @@ const MOCK_STORES: ExtendedStore[] = [
 ];
 
 const App: React.FC = () => {
+  // --- Dark/Light Theme State ---
+  const [themeMode, setThemeMode] = useState<'light' | 'dark'>(() => {
+    return (localStorage.getItem('theme_mode') as 'light' | 'dark') || 'light';
+  });
+
+  useEffect(() => {
+    const root = window.document.documentElement;
+    if (themeMode === 'dark') {
+      root.classList.add('dark');
+    } else {
+      root.classList.remove('dark');
+    }
+    localStorage.setItem('theme_mode', themeMode);
+  }, [themeMode]);
+
   // --- App Lock State (Global) ---
   const [isAppUnlocked, setIsAppUnlocked] = useState(false);
   const [entryCode, setEntryCode] = useState('');
@@ -767,10 +782,10 @@ const App: React.FC = () => {
 
   // --- RENDER: 3. Main App UI ---
   return (
-    <div className="min-h-screen bg-slate-50 relative font-sans text-slate-900">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 relative font-sans text-slate-900 dark:text-slate-100 transition-colors duration-200">
 
       {/* Header */}
-      <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-slate-200 px-4 py-3 flex items-center justify-between shadow-sm">
+      <header className="sticky top-0 z-30 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-4 py-3 flex items-center justify-between shadow-sm">
         <div className="flex items-center gap-3">
           <div className={`p-2 rounded-lg text-white shadow-md transition-colors 
             ${currentRole === Role.SUPPORT ? 'bg-slate-800' :
@@ -781,8 +796,8 @@ const App: React.FC = () => {
                 currentRole === Role.SALES ? <Briefcase size={20} /> : <HardHat size={20} />}
           </div>
           <div>
-            <h1 className="font-bold text-slate-900 leading-tight text-lg">{activeStore.name}</h1>
-            <p className="text-[11px] font-medium text-slate-500 uppercase tracking-wider flex items-center gap-1">
+            <h1 className="font-bold text-slate-900 dark:text-white leading-tight text-lg">{activeStore.name}</h1>
+            <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1">
               {currentRole === Role.SUPPORT ? '통합 관제 센터' :
                 currentRole === Role.SAFETY ? '안전관리 현장점검' :
                   currentRole === Role.SALES ? '영업관리 현장점검' : '시설관리 현장점검'}
@@ -792,16 +807,26 @@ const App: React.FC = () => {
 
         <div className="flex items-center gap-2">
           {currentRole === Role.SUPPORT && (
-            <div className="relative p-2 text-slate-500">
+            <div className="relative p-2 text-slate-500 dark:text-slate-400">
               <Bell size={20} />
               {storeLogs.some(l => l.riskLevel === RiskLevel.WARNING && new Date(l.timestamp).toDateString() === new Date().toDateString()) && (
-                <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white"></span>
+                <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white dark:ring-slate-900"></span>
               )}
             </div>
           )}
+          
+          {/* Theme Mode Toggle Button */}
+          <button
+            onClick={() => setThemeMode(themeMode === 'light' ? 'dark' : 'light')}
+            className="p-2 text-slate-500 hover:text-slate-950 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+            title={themeMode === 'light' ? '다크 모드로 전환' : '라이트 모드로 전환'}
+          >
+            {themeMode === 'light' ? <Moon size={18} /> : <Sun size={18} />}
+          </button>
+
           <button
             onClick={() => { setCurrentRole(null); setScannedSiteId(null); setIsInspecting(false); setIsAssessing(false); }}
-            className="px-3 py-1.5 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors flex items-center gap-1 font-bold text-sm"
+            className="px-3 py-1.5 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors flex items-center gap-1 font-bold text-sm"
             title="뒤로가기"
           >
             <ArrowLeft size={18} />
