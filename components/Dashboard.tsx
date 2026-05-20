@@ -278,7 +278,13 @@ const DigitalTwinMap: React.FC<DigitalTwinMapProps> = ({ sites, logs, onSelectSi
 
                             {/* Markers */}
                             {floorSites.map(site => {
-                                const siteLogs = logs.filter(l => l.siteId === site.id);
+                                const todayDateObj = new Date();
+                                const todayStr = `${todayDateObj.getFullYear()}-${String(todayDateObj.getMonth()+1).padStart(2, '0')}-${String(todayDateObj.getDate()).padStart(2, '0')}`;
+                                const siteLogs = logs.filter(l => {
+                                    if (l.siteId !== site.id) return false;
+                                    const logDate = new Date(l.timestamp);
+                                    return `${logDate.getFullYear()}-${String(logDate.getMonth()+1).padStart(2, '0')}-${String(logDate.getDate()).padStart(2, '0')}` === todayStr;
+                                });
                                 const hasWarning = siteLogs.some(l => l.riskLevel === '경고' && l.action?.status !== 'RESOLVED');
                                 const hasCaution = siteLogs.some(l => l.riskLevel === '주의' && l.action?.status !== 'RESOLVED');
                                 const x = site.mapX ?? 50;
