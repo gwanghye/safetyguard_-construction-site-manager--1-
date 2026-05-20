@@ -207,8 +207,8 @@ const DigitalTwinMap: React.FC<DigitalTwinMapProps> = ({ sites, logs, onSelectSi
         const reader = new FileReader();
         reader.onload = async (event) => {
             if (event.target?.result) {
-                // Compress floor plan for high resolution (max 1600px width) to avoid network bloat
-                const compressed = await compressImage(event.target.result as string, 1600, 0.8);
+                // Firebase Storage 권한/초기화 에러를 방지하기 위해 Firestore(1MB 제한)에 직접 저장하도록 강력하게 압축합니다.
+                const compressed = await compressImage(event.target.result as string, 1000, 0.6);
                 setPendingFloorPlan(compressed);
             }
         };
@@ -229,7 +229,8 @@ const DigitalTwinMap: React.FC<DigitalTwinMapProps> = ({ sites, logs, onSelectSi
                 ctx.translate(canvas.width / 2, canvas.height / 2);
                 ctx.rotate((90 * Math.PI) / 180);
                 ctx.drawImage(img, -img.width / 2, -img.height / 2);
-                setPendingFloorPlan(canvas.toDataURL('image/jpeg', 0.8));
+                // 회전 시에도 1MB 제한을 피하기 위해 강력 압축 유지
+                setPendingFloorPlan(canvas.toDataURL('image/jpeg', 0.6));
             }
         };
         img.src = pendingFloorPlan;
@@ -239,8 +240,8 @@ const DigitalTwinMap: React.FC<DigitalTwinMapProps> = ({ sites, logs, onSelectSi
         if (!pendingFloorPlan || !onUpdateSite) return;
         setIsUploadingPlan(true);
         try {
-            // Use 'inspections' path to guarantee we don't hit Storage Security Rule blocks
-            const newUrl = await uploadImageToStorage(pendingFloorPlan, 'inspections');
+            // Storage 서버 오류(권한, 미설정 등)를 원천 차단하기 위해 Storage를 거치지 않고 직접 저장
+            const newUrl = pendingFloorPlan;
             const sitesOnFloor = sites.filter(s => s.floor.trim().toUpperCase() === selectedFloor.trim().toUpperCase());
             for (const s of sitesOnFloor) {
                 await onUpdateSite({ ...s, drawingUrl: newUrl, layoutType: 'custom' });
