@@ -9,6 +9,7 @@ import HistoryTimeline from './HistoryTimeline';
 import { hapticLight, hapticMedium, hapticSuccess } from '../utils/haptics';
 import PullToRefresh from './PullToRefresh';
 import ImageModal from './ImageModal';
+import { uploadImageToStorage } from '../services/storageService';
 
 interface DashboardProps {
     logs: InspectionLog[];
@@ -166,6 +167,9 @@ interface DigitalTwinMapProps {
 }
 
 const DigitalTwinMap: React.FC<DigitalTwinMapProps> = ({ sites, logs, onSelectSite, onUpdateSite }) => {
+    const [pendingFloorPlan, setPendingFloorPlan] = useState<string | null>(null);
+    const [isUploadingPlan, setIsUploadingPlan] = useState(false);
+
     const todayDate = new Date();
     todayDate.setHours(0, 0, 0, 0);
 
@@ -200,17 +204,50 @@ const DigitalTwinMap: React.FC<DigitalTwinMapProps> = ({ sites, logs, onSelectSi
         if (!file || !onUpdateSite) return;
         
         const reader = new FileReader();
-        reader.onload = async (event) => {
+        reader.onload = (event) => {
             if (event.target?.result) {
-                const newUrl = event.target.result as string;
-                // Update all sites on this floor so they share the drawing
-                const sitesOnFloor = sites.filter(s => s.floor.trim().toUpperCase() === selectedFloor.trim().toUpperCase());
-                for (const s of sitesOnFloor) {
-                    await onUpdateSite({ ...s, drawingUrl: newUrl, layoutType: 'custom' });
-                }
+                setPendingFloorPlan(event.target.result as string);
             }
         };
         reader.readAsDataURL(file);
+        // Reset the input value so the same file can be selected again
+        e.target.value = '';
+    };
+
+    const rotatePendingPlan = () => {
+        if (!pendingFloorPlan) return;
+        const img = new Image();
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = img.height;
+            canvas.height = img.width;
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+                ctx.translate(canvas.width / 2, canvas.height / 2);
+                ctx.rotate((90 * Math.PI) / 180);
+                ctx.drawImage(img, -img.width / 2, -img.height / 2);
+                setPendingFloorPlan(canvas.toDataURL('image/png'));
+            }
+        };
+        img.src = pendingFloorPlan;
+    };
+
+    const savePendingPlan = async () => {
+        if (!pendingFloorPlan || !onUpdateSite) return;
+        setIsUploadingPlan(true);
+        try {
+            const newUrl = await uploadImageToStorage(pendingFloorPlan, 'floorplans');
+            const sitesOnFloor = sites.filter(s => s.floor.trim().toUpperCase() === selectedFloor.trim().toUpperCase());
+            for (const s of sitesOnFloor) {
+                await onUpdateSite({ ...s, drawingUrl: newUrl, layoutType: 'custom' });
+            }
+            setPendingFloorPlan(null);
+        } catch (error) {
+            console.error(error);
+            alert("도면 업로드 중 오류가 발생했습니다. (네트워크 오류 등)");
+        } finally {
+            setIsUploadingPlan(false);
+        }
     };
 
     return (
@@ -325,6 +362,40 @@ const DigitalTwinMap: React.FC<DigitalTwinMapProps> = ({ sites, logs, onSelectSi
                         <span className="text-slate-400 ml-auto">마커 클릭 시 해당 현장으로 이동</span>
                     </div>
                 </>
+            )}
+
+            {/* Modal for rotating and saving the floor plan */}
+            {pendingFloorPlan && (
+                <div className="fixed inset-0 bg-black/80 z-[100] flex flex-col items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl w-full max-w-lg overflow-hidden flex flex-col">
+                        <div className="p-4 border-b flex justify-between items-center">
+                            <h3 className="font-bold text-slate-800 text-lg">도면 등록 미리보기</h3>
+                            <button onClick={() => setPendingFloorPlan(null)} disabled={isUploadingPlan} className="p-1 hover:bg-slate-100 rounded-full">
+                                <X size={20} className="text-slate-500" />
+                            </button>
+                        </div>
+                        <div className="p-4 bg-slate-100 flex-1 flex items-center justify-center min-h-[300px]">
+                            <img src={pendingFloorPlan} alt="Pending Plan" className="max-w-full max-h-[50vh] object-contain shadow-md rounded" />
+                        </div>
+                        <div className="p-4 flex gap-3">
+                            <button 
+                                onClick={rotatePendingPlan}
+                                disabled={isUploadingPlan}
+                                className="flex-1 py-3 bg-slate-800 text-white font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-slate-700 transition"
+                            >
+                                <RefreshCw size={18} /> 회전하기
+                            </button>
+                            <button 
+                                onClick={savePendingPlan}
+                                disabled={isUploadingPlan}
+                                className="flex-1 py-3 bg-indigo-600 text-white font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-indigo-700 transition"
+                            >
+                                {isUploadingPlan ? <RefreshCw size={18} className="animate-spin" /> : <Check size={18} />}
+                                {isUploadingPlan ? '저장 중...' : '저장하기'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );
