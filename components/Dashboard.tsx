@@ -20,6 +20,100 @@ interface DashboardProps {
     storeName?: string;
 }
 
+interface BeforeAfterSliderProps {
+    beforeImg: string;
+    afterImg: string;
+}
+
+const BeforeAfterSlider: React.FC<BeforeAfterSliderProps> = ({ beforeImg, afterImg }) => {
+    const [sliderPosition, setSliderPosition] = useState(50);
+    const containerRef = React.useRef<HTMLDivElement>(null);
+    const [containerWidth, setContainerWidth] = useState(300);
+
+    useEffect(() => {
+        if (containerRef.current) {
+            setContainerWidth(containerRef.current.getBoundingClientRect().width);
+        }
+        const handleResize = () => {
+            if (containerRef.current) {
+                setContainerWidth(containerRef.current.getBoundingClientRect().width);
+            }
+        };
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
+    const handleMove = (clientX: number) => {
+        if (!containerRef.current) return;
+        const rect = containerRef.current.getBoundingClientRect();
+        const x = clientX - rect.left;
+        const position = Math.max(0, Math.min(100, (x / rect.width) * 100));
+        setSliderPosition(position);
+    };
+
+    const handleMouseMove = (e: React.MouseEvent) => {
+        if (e.buttons === 1) {
+            handleMove(e.clientX);
+        }
+    };
+
+    const handleTouchMove = (e: React.TouchEvent) => {
+        if (e.touches && e.touches[0]) {
+            handleMove(e.touches[0].clientX);
+        }
+    };
+
+    const handlePointerMove = (e: React.PointerEvent) => {
+        if (e.buttons === 1) {
+            handleMove(e.clientX);
+        }
+    };
+
+    return (
+        <div 
+            ref={containerRef}
+            onMouseMove={handleMouseMove}
+            onTouchMove={handleTouchMove}
+            onPointerMove={handlePointerMove}
+            className="relative w-full h-48 select-none overflow-hidden rounded-xl border border-slate-200/60 shadow-[0_1px_2px_rgba(0,0,0,0.02),0_4px_16px_rgba(0,0,0,0.02)] cursor-ew-resize touch-none"
+        >
+            {/* After Image (Background) */}
+            <img src={afterImg} alt="After" className="absolute inset-0 w-full h-full object-cover pointer-events-none" />
+
+            {/* Before Image (Overlay with dynamic width) */}
+            <div 
+                className="absolute inset-y-0 left-0 overflow-hidden pointer-events-none border-r-2 border-white shadow-[2px_0_8px_rgba(0,0,0,0.15)]"
+                style={{ width: `${sliderPosition}%` }}
+            >
+                <img 
+                    src={beforeImg} 
+                    alt="Before" 
+                    className="absolute inset-y-0 left-0 h-full object-cover pointer-events-none"
+                    style={{ width: containerWidth, maxWidth: 'none' }}
+                />
+            </div>
+
+            {/* Center Slider Bar Control */}
+            <div 
+                className="absolute inset-y-0 pointer-events-none flex items-center justify-center"
+                style={{ left: `calc(${sliderPosition}% - 12px)` }}
+            >
+                <div className="w-6 h-6 rounded-full bg-white border border-slate-200 shadow-md flex items-center justify-center text-slate-500 font-semibold text-xs select-none">
+                    ↔
+                </div>
+            </div>
+            
+            {/* Badges */}
+            <div className="absolute top-2 left-2 bg-red-600/80 backdrop-blur-sm text-white font-semibold text-[8px] px-1.5 py-0.5 rounded pointer-events-none tracking-wider">
+                조치 전 (Before)
+            </div>
+            <div className="absolute top-2 right-2 bg-emerald-600/80 backdrop-blur-sm text-white font-semibold text-[8px] px-1.5 py-0.5 rounded pointer-events-none tracking-wider">
+                조치 후 (After)
+            </div>
+        </div>
+    );
+};
+
 const renderFormattedText = (text: string) => {
     if (!text) return null;
     
@@ -700,31 +794,40 @@ const Dashboard: React.FC<DashboardProps> = ({ logs, sites, assessments, onAddSi
                                                                             
                                                                             {/* Before/After Photo Comparison */}
                                                                             {((l.photos && l.photos.length > 0) || (l.action.resolvedPhotos && l.action.resolvedPhotos.length > 0) || l.action.photoUrl) && (
-                                                                                <div className="grid grid-cols-2 gap-2 my-2 bg-slate-50 p-2 rounded-lg border border-slate-100">
-                                                                                    <div className="flex flex-col items-center">
-                                                                                        <span className="text-[9px] font-bold text-red-500 mb-1">조치 전 (Before)</span>
-                                                                                        {l.photos && l.photos[0] ? (
-                                                                                            <button onClick={() => setSelectedImage(l.photos[0])} className="w-full h-20 rounded-lg overflow-hidden border border-red-200 hover:border-red-400 transition-colors">
-                                                                                                <img src={l.photos[0]} className="w-full h-full object-cover" alt="Before" />
-                                                                                            </button>
-                                                                                        ) : (
-                                                                                            <div className="w-full h-20 bg-slate-100 rounded-lg flex items-center justify-center text-slate-300 text-[10px]">사진 없음</div>
-                                                                                        )}
-                                                                                    </div>
-                                                                                    <div className="flex flex-col items-center">
-                                                                                        <span className="text-[9px] font-bold text-emerald-500 mb-1">조치 후 (After)</span>
-                                                                                        {l.action.resolvedPhotos && l.action.resolvedPhotos[0] ? (
-                                                                                            <button onClick={() => setSelectedImage(l.action.resolvedPhotos[0])} className="w-full h-20 rounded-lg overflow-hidden border border-emerald-200 hover:border-emerald-400 transition-colors">
-                                                                                                <img src={l.action.resolvedPhotos[0]} className="w-full h-full object-cover" alt="After" />
-                                                                                            </button>
-                                                                                        ) : l.action.photoUrl ? (
-                                                                                            <button onClick={() => setSelectedImage(l.action.photoUrl)} className="w-full h-20 rounded-lg overflow-hidden border border-emerald-200 hover:border-emerald-400 transition-colors">
-                                                                                                <img src={l.action.photoUrl} className="w-full h-full object-cover" alt="After" />
-                                                                                            </button>
-                                                                                        ) : (
-                                                                                            <div className="w-full h-20 bg-slate-100 rounded-lg flex items-center justify-center text-slate-300 text-[10px]">사진 없음</div>
-                                                                                        )}
-                                                                                    </div>
+                                                                                <div className="my-2">
+                                                                                    {l.photos && l.photos[0] && (l.action.resolvedPhotos?.[0] || l.action.photoUrl) ? (
+                                                                                        <BeforeAfterSlider 
+                                                                                            beforeImg={l.photos[0]} 
+                                                                                            afterImg={l.action.resolvedPhotos?.[0] || l.action.photoUrl || ""} 
+                                                                                        />
+                                                                                    ) : (
+                                                                                        <div className="grid grid-cols-2 gap-2 bg-slate-50 p-2 rounded-lg border border-slate-100">
+                                                                                            <div className="flex flex-col items-center">
+                                                                                                <span className="text-[9px] font-bold text-red-500 mb-1">조치 전 (Before)</span>
+                                                                                                {l.photos && l.photos[0] ? (
+                                                                                                    <button onClick={() => setSelectedImage(l.photos[0])} className="w-full h-20 rounded-lg overflow-hidden border border-red-200 hover:border-red-400 transition-colors">
+                                                                                                        <img src={l.photos[0]} className="w-full h-full object-cover" alt="Before" />
+                                                                                                    </button>
+                                                                                                ) : (
+                                                                                                    <div className="w-full h-20 bg-slate-100 rounded-lg flex items-center justify-center text-slate-300 text-[10px]">사진 없음</div>
+                                                                                                )}
+                                                                                            </div>
+                                                                                            <div className="flex flex-col items-center">
+                                                                                                <span className="text-[9px] font-bold text-emerald-500 mb-1">조치 후 (After)</span>
+                                                                                                {l.action.resolvedPhotos && l.action.resolvedPhotos[0] ? (
+                                                                                                    <button onClick={() => setSelectedImage(l.action.resolvedPhotos[0])} className="w-full h-20 rounded-lg overflow-hidden border border-emerald-200 hover:border-emerald-400 transition-colors">
+                                                                                                        <img src={l.action.resolvedPhotos[0]} className="w-full h-full object-cover" alt="After" />
+                                                                                                    </button>
+                                                                                                ) : l.action.photoUrl ? (
+                                                                                                    <button onClick={() => setSelectedImage(l.action.photoUrl)} className="w-full h-20 rounded-lg overflow-hidden border border-emerald-200 hover:border-emerald-400 transition-colors">
+                                                                                                        <img src={l.action.photoUrl} className="w-full h-full object-cover" alt="After" />
+                                                                                                    </button>
+                                                                                                ) : (
+                                                                                                    <div className="w-full h-20 bg-slate-100 rounded-lg flex items-center justify-center text-slate-300 text-[10px]">사진 없음</div>
+                                                                                                )}
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    )}
                                                                                 </div>
                                                                             )}
 
