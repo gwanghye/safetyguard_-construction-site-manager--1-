@@ -656,22 +656,26 @@ const Dashboard: React.FC<DashboardProps> = ({ logs, sites, assessments, onAddSi
                                                     )}
 
                                                     {siteLogs.map(l => (
-                                                        <div key={l.id} className={`p-3 rounded-lg border ${l.riskLevel === RiskLevel.WARNING ? 'bg-red-50 border-red-200' : 'bg-white border-slate-200'}`}>
-                                                            <div className="flex justify-between items-start mb-1">
+                                                        <div key={l.id} className={`p-4 rounded-xl border transition-all ${
+                                                            l.riskLevel === RiskLevel.WARNING 
+                                                            ? 'bg-red-50/80 backdrop-blur-sm border-red-300 shadow-md shadow-red-100/30 ring-1 ring-red-300/20' 
+                                                            : 'bg-white/90 backdrop-blur-sm border-slate-100 shadow-sm hover:shadow-md'
+                                                        }`}>
+                                                            <div className="flex justify-between items-start mb-1.5">
                                                                 <span className={`text-xs font-bold ${l.inspectorRole === Role.SAFETY ? 'text-emerald-600' : l.inspectorRole === Role.SALES ? 'text-purple-600' : 'text-blue-600'}`}>
                                                                     [{l.inspectorRole === Role.SAFETY ? '안전' : l.inspectorRole === Role.SALES ? '영업' : '시설'}] 점검자: {l.inspector}
                                                                 </span>
                                                                 {l.riskLevel === RiskLevel.WARNING && (
-                                                                    <span className="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow-sm">경고</span>
+                                                                    <span className="bg-red-500 text-white text-[9px] font-bold px-2 py-0.5 rounded-full shadow-sm animate-pulse">경고</span>
                                                                 )}
                                                             </div>
 
-                                                            {l.notes && <div className="text-sm text-slate-700 mb-2">{l.notes}</div>}
+                                                            {l.notes && <div className="text-sm text-slate-700 mb-2.5 font-medium leading-relaxed">{l.notes}</div>}
                                                             
                                                             {l.photos.length > 0 && (
-                                                                <div className="flex gap-2 overflow-x-auto no-scrollbar py-1 mb-2">
+                                                                <div className="flex gap-2 overflow-x-auto no-scrollbar py-1 mb-2.5">
                                                                     {l.photos.map((photo, idx) => (
-                                                                        <button key={idx} onClick={() => setSelectedImage(photo)} className="w-16 h-16 flex-shrink-0 rounded-lg overflow-hidden border border-slate-200">
+                                                                        <button key={idx} onClick={() => setSelectedImage(photo)} className="w-16 h-16 flex-shrink-0 rounded-lg overflow-hidden border border-slate-200 hover:border-indigo-400 transition-colors shadow-sm">
                                                                             <img src={photo} className="w-full h-full object-cover" alt="" />
                                                                         </button>
                                                                     ))}
@@ -684,15 +688,50 @@ const Dashboard: React.FC<DashboardProps> = ({ logs, sites, assessments, onAddSi
                                                                     {(!l.action || l.action.status === 'PENDING') ? (
                                                                         <button 
                                                                             onClick={() => setActionLogId(l.id)}
-                                                                            className="w-full py-2 bg-red-100 hover:bg-red-200 text-red-700 text-sm font-bold rounded-lg transition-colors flex items-center justify-center gap-2"
+                                                                            className="w-full py-2 bg-red-100 hover:bg-red-200 text-red-700 text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-2 shadow-sm"
                                                                         >
-                                                                            <Hammer size={16} /> 개선 조치 등록하기
+                                                                            <Hammer size={14} /> 개선 조치 등록하기
                                                                         </button>
                                                                     ) : (
-                                                                        <div className="bg-white p-2 rounded border border-emerald-100 text-xs text-slate-700 shadow-sm">
-                                                                            <div className="font-bold text-emerald-600 mb-1 flex items-center gap-1"><Check size={12}/> 조치 완료 (AI 승인)</div>
-                                                                            <div className="mb-1"><span className="text-slate-400">조치내용:</span> {l.action.actionNotes}</div>
-                                                                            <div className="text-[10px] text-slate-400 italic">" {l.action.aiFeedback} "</div>
+                                                                        <div className="bg-white p-3 rounded-lg border border-emerald-100 text-xs text-slate-700 shadow-sm space-y-2">
+                                                                            <div className="font-bold text-emerald-600 flex items-center gap-1"><CheckCircle2 size={12}/> 조치 완료 (AI 승인)</div>
+                                                                            
+                                                                            {/* Before/After Photo Comparison */}
+                                                                            {((l.photos && l.photos.length > 0) || (l.action.resolvedPhotos && l.action.resolvedPhotos.length > 0) || l.action.photoUrl) && (
+                                                                                <div className="grid grid-cols-2 gap-2 my-2 bg-slate-50 p-2 rounded-lg border border-slate-100">
+                                                                                    <div className="flex flex-col items-center">
+                                                                                        <span className="text-[9px] font-bold text-red-500 mb-1">조치 전 (Before)</span>
+                                                                                        {l.photos && l.photos[0] ? (
+                                                                                            <button onClick={() => setSelectedImage(l.photos[0])} className="w-full h-20 rounded-lg overflow-hidden border border-red-200 hover:border-red-400 transition-colors">
+                                                                                                <img src={l.photos[0]} className="w-full h-full object-cover" alt="Before" />
+                                                                                            </button>
+                                                                                        ) : (
+                                                                                            <div className="w-full h-20 bg-slate-100 rounded-lg flex items-center justify-center text-slate-300 text-[10px]">사진 없음</div>
+                                                                                        )}
+                                                                                    </div>
+                                                                                    <div className="flex flex-col items-center">
+                                                                                        <span className="text-[9px] font-bold text-emerald-500 mb-1">조치 후 (After)</span>
+                                                                                        {l.action.resolvedPhotos && l.action.resolvedPhotos[0] ? (
+                                                                                            <button onClick={() => setSelectedImage(l.action.resolvedPhotos[0])} className="w-full h-20 rounded-lg overflow-hidden border border-emerald-200 hover:border-emerald-400 transition-colors">
+                                                                                                <img src={l.action.resolvedPhotos[0]} className="w-full h-full object-cover" alt="After" />
+                                                                                            </button>
+                                                                                        ) : l.action.photoUrl ? (
+                                                                                            <button onClick={() => setSelectedImage(l.action.photoUrl)} className="w-full h-20 rounded-lg overflow-hidden border border-emerald-200 hover:border-emerald-400 transition-colors">
+                                                                                                <img src={l.action.photoUrl} className="w-full h-full object-cover" alt="After" />
+                                                                                            </button>
+                                                                                        ) : (
+                                                                                            <div className="w-full h-20 bg-slate-100 rounded-lg flex items-center justify-center text-slate-300 text-[10px]">사진 없음</div>
+                                                                                        )}
+                                                                                    </div>
+                                                                                </div>
+                                                                            )}
+
+                                                                            <div className="mb-1"><span className="text-slate-400 font-bold">조치내용:</span> {l.action.actionNotes}</div>
+                                                                            {l.action.aiFeedback && (
+                                                                                <div className="text-[10px] text-slate-500 italic bg-slate-50 p-2 rounded border border-slate-100">
+                                                                                    " {l.action.aiFeedback} "
+                                                                                </div>
+                                                                            )}
                                                                         </div>
                                                                     )}
                                                                 </div>
