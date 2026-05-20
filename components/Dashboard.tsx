@@ -415,7 +415,7 @@ const Dashboard: React.FC<DashboardProps> = ({ logs, sites, assessments, onAddSi
     return (
         <PullToRefresh onRefresh={() => window.location.reload()}>
             <div className="p-4 md:p-6 pb-24">
-                <div className="flex bg-slate-200 p-1 rounded-xl mb-6 overflow-x-auto no-scrollbar gap-1">
+                <div className="flex bg-slate-100/80 backdrop-blur-md p-1 border border-slate-200/50 rounded-2xl mb-6 overflow-x-auto no-scrollbar gap-1 shadow-sm">
                     {[
                         { id: 'monitoring', label: '통합 관제', icon: LayoutGrid },
                         { id: 'analysis', label: '위험 분석', icon: Activity },
@@ -425,8 +425,10 @@ const Dashboard: React.FC<DashboardProps> = ({ logs, sites, assessments, onAddSi
                         <button
                             key={tab.id}
                             onClick={() => { hapticLight(); setActiveTab(tab.id as any); }}
-                            className={`flex-1 min-w-[100px] py-2.5 text-xs md:text-sm font-bold rounded-lg flex items-center justify-center gap-2 transition-all
-                                ${activeTab === tab.id ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}
+                            className={`flex-1 min-w-[100px] py-2.5 text-xs md:text-sm font-semibold rounded-xl flex items-center justify-center gap-2 transition-all duration-300
+                                ${activeTab === tab.id 
+                                    ? 'bg-white text-indigo-600 shadow-[0_2px_8px_rgba(0,0,0,0.04)] ring-1 ring-slate-900/[0.04] scale-[1.01]' 
+                                    : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50/50'}
                             `}
                         >
                             <tab.icon size={16} />
@@ -656,10 +658,10 @@ const Dashboard: React.FC<DashboardProps> = ({ logs, sites, assessments, onAddSi
                                                     )}
 
                                                     {siteLogs.map(l => (
-                                                        <div key={l.id} className={`p-4 rounded-xl border transition-all ${
+                                                        <div key={l.id} className={`p-4 rounded-xl border transition-all duration-300 ${
                                                             l.riskLevel === RiskLevel.WARNING 
-                                                            ? 'bg-red-50/80 backdrop-blur-sm border-red-300 shadow-md shadow-red-100/30 ring-1 ring-red-300/20' 
-                                                            : 'bg-white/90 backdrop-blur-sm border-slate-100 shadow-sm hover:shadow-md'
+                                                            ? 'bg-rose-50/90 backdrop-blur-sm border-rose-200 ring-1 ring-rose-950/[0.05] shadow-[0_1px_2px_rgba(244,63,94,0.05),0_4px_16px_rgba(244,63,94,0.05)] animate-in fade-in slide-in-from-bottom-2' 
+                                                            : 'bg-white/90 backdrop-blur-sm border border-slate-200/60 ring-1 ring-slate-950/[0.02] shadow-[0_1px_2px_rgba(0,0,0,0.02),0_4px_16px_rgba(0,0,0,0.02)] hover:shadow-[0_1px_2px_rgba(0,0,0,0.04),0_12px_24px_rgba(0,0,0,0.04)]'
                                                         }`}>
                                                             <div className="flex justify-between items-start mb-1.5">
                                                                 <span className={`text-xs font-bold ${l.inspectorRole === Role.SAFETY ? 'text-emerald-600' : l.inspectorRole === Role.SALES ? 'text-purple-600' : 'text-blue-600'}`}>

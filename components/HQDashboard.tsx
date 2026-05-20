@@ -377,22 +377,22 @@ const HQDashboard: React.FC<HQDashboardProps> = ({ stores, onExit }) => {
                     
                     {/* Tabs */}
                     {activeTab !== 'storeDetail' && (
-                        <div className="flex bg-slate-200 p-1 rounded-xl mb-6 shadow-sm overflow-x-auto no-scrollbar">
+                        <div className="flex bg-slate-100/80 backdrop-blur-md p-1 border border-slate-200/50 rounded-2xl mb-6 shadow-sm overflow-x-auto no-scrollbar gap-1">
                             <button
                                 onClick={() => { hapticLight(); setActiveTab('overview'); }}
-                                className={`flex-1 min-w-[120px] py-3 text-sm font-bold rounded-lg flex items-center justify-center gap-2 transition-all ${activeTab === 'overview' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                className={`flex-1 min-w-[120px] py-3 text-sm font-semibold rounded-xl flex items-center justify-center gap-2 transition-all duration-300 ${activeTab === 'overview' ? 'bg-white text-indigo-700 shadow-[0_2px_8px_rgba(0,0,0,0.04)] ring-1 ring-slate-900/[0.04] scale-[1.01]' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50/50'}`}
                             >
                                 <BarChart3 size={16} /> 데이터 분석
                             </button>
                             <button
                                 onClick={() => { hapticLight(); setActiveTab('reports'); }}
-                                className={`flex-1 min-w-[120px] py-3 text-sm font-bold rounded-lg flex items-center justify-center gap-2 transition-all ${activeTab === 'reports' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                className={`flex-1 min-w-[120px] py-3 text-sm font-semibold rounded-xl flex items-center justify-center gap-2 transition-all duration-300 ${activeTab === 'reports' ? 'bg-white text-indigo-700 shadow-[0_2px_8px_rgba(0,0,0,0.04)] ring-1 ring-slate-900/[0.04] scale-[1.01]' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50/50'}`}
                             >
                                 <BrainCircuit size={16} /> 완료 보고서
                             </button>
                             <button
                                 onClick={() => { hapticLight(); setActiveTab('archive'); }}
-                                className={`flex-1 min-w-[120px] py-3 text-sm font-bold rounded-lg flex items-center justify-center gap-2 transition-all ${activeTab === 'archive' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                className={`flex-1 min-w-[120px] py-3 text-sm font-semibold rounded-xl flex items-center justify-center gap-2 transition-all duration-300 ${activeTab === 'archive' ? 'bg-white text-indigo-700 shadow-[0_2px_8px_rgba(0,0,0,0.04)] ring-1 ring-slate-900/[0.04] scale-[1.01]' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50/50'}`}
                             >
                                 <FileCheck2 size={16} /> 수시평가 보관함
                             </button>
