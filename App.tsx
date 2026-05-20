@@ -303,6 +303,11 @@ const App: React.FC = () => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const activeDateSites = storeSites.filter(site => {
+    if (currentRole === Role.SALES) {
+      const isExempt = new Date(site.endDate) < new Date('2026-04-20');
+      if (isExempt) return false;
+    }
+
     const end = new Date(site.endDate);
     const isActive = end >= today;
     
