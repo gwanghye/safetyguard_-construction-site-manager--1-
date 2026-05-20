@@ -165,150 +165,120 @@ interface DigitalTwinMapProps {
 }
 
 const DigitalTwinMap: React.FC<DigitalTwinMapProps> = ({ sites, logs, onSelectSite }) => {
-    const [selectedFloor, setSelectedFloor] = useState<string>('1F');
-
+    // Only show active (non-완료) sites
     const activeSites = sites.filter(s => s.status !== '완료');
-    
-    const floorSites = activeSites.filter(s => {
-        const floorClean = s.floor.trim().toUpperCase();
-        const selectedClean = selectedFloor.trim().toUpperCase();
-        return floorClean === selectedClean;
-    });
 
-    const availableFloors = Array.from(new Set(['1F', '2F', 'B1', ...sites.map(s => s.floor.trim().toUpperCase())])).sort();
+    // Floor tabs generated only from active sites
+    const availableFloors = Array.from(new Set(activeSites.map(s => s.floor.trim().toUpperCase()))).sort();
+    const [selectedFloor, setSelectedFloor] = useState<string>(() => availableFloors[0] || '1F');
+
+    // Sites to show on the map: active AND matching selected floor
+    const floorSites = activeSites.filter(s => s.floor.trim().toUpperCase() === selectedFloor.trim().toUpperCase());
+
+    // Pick the floor plan image for this floor (first site with a drawing)
+    const floorDrawingUrl = floorSites.find(s => s.drawingUrl)?.drawingUrl || null;
 
     return (
-        <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 space-y-4">
+        <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 space-y-3">
             <div className="flex justify-between items-center">
-                <div>
-                    <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
-                        <span className="w-2.5 h-2.5 rounded-full bg-indigo-600 animate-pulse" />
-                        실시간 3D 디지털 트윈 입체 도면 (Advanced Floor Mapping)
-                    </h3>
-                    <p className="text-[11px] text-slate-500 font-medium">현장 구역별 실시간 위험 요소를 3차원 입체 도면으로 실시간 관제합니다.</p>
-                </div>
-                
-                {/* Floor Selector Pills */}
-                <div className="flex gap-1 bg-slate-100 p-1 rounded-lg">
-                    {availableFloors.map(fl => (
-                        <button
-                            key={fl}
-                            type="button"
-                            onClick={() => setSelectedFloor(fl)}
-                            className={`px-2.5 py-1 text-[11px] font-bold rounded-md transition-all ${
-                                selectedFloor === fl 
-                                    ? 'bg-white text-indigo-600 shadow-sm' 
-                                    : 'text-slate-500 hover:text-slate-800'
-                            }`}
-                        >
-                            {fl}
-                        </button>
-                    ))}
-                </div>
+                <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-indigo-600 animate-pulse" />
+                    현장 위치
+                    <span className="text-[10px] font-normal text-slate-400 ml-1">
+                        활성 {activeSites.length}개 현장
+                    </span>
+                </h3>
+
+                {/* Floor Selector — only floors that have active sites */}
+                {availableFloors.length > 1 && (
+                    <div className="flex gap-1 bg-slate-100 p-1 rounded-lg">
+                        {availableFloors.map(fl => (
+                            <button
+                                key={fl}
+                                type="button"
+                                onClick={() => setSelectedFloor(fl)}
+                                className={`px-2.5 py-1 text-[11px] font-bold rounded-md transition-all ${
+                                    selectedFloor === fl
+                                        ? 'bg-white text-indigo-600 shadow-sm'
+                                        : 'text-slate-500 hover:text-slate-800'
+                                }`}
+                            >
+                                {fl}
+                            </button>
+                        ))}
+                    </div>
+                )}
             </div>
 
-            {/* Isometric Map Arena */}
-            <div className="relative w-full h-[320px] bg-slate-950 rounded-xl overflow-hidden flex items-center justify-center border border-slate-800 shadow-inner select-none">
-                {/* Background Grid Pattern */}
-                <div className="absolute inset-0 bg-[linear-gradient(to_right,#1e293b_1px,transparent_1px),linear-gradient(to_bottom,#1e293b_1px,transparent_1px)] bg-[size:24px_24px] opacity-25" />
+            {activeSites.length === 0 ? (
+                <div className="h-[200px] flex flex-col items-center justify-center text-slate-400 text-sm border-2 border-dashed border-slate-100 rounded-xl">
+                    <Map size={32} className="mb-2 opacity-30" />
+                    활성화된 공사 현장이 없습니다.
+                </div>
+            ) : (
+                <>
+                    {/* Isometric Map Arena */}
+                    <div className="relative w-full bg-slate-950 rounded-xl overflow-hidden flex items-center justify-center border border-slate-800 shadow-inner select-none" style={{ height: 280 }}>
+                        <div className="absolute inset-0 bg-[linear-gradient(to_right,#1e293b_1px,transparent_1px),linear-gradient(to_bottom,#1e293b_1px,transparent_1px)] bg-[size:24px_24px] opacity-20" />
+                        <div className="absolute w-[200px] h-[200px] bg-indigo-600/10 rounded-full blur-[80px] pointer-events-none" />
 
-                {/* Ambient Glow */}
-                <div className="absolute w-[200px] h-[200px] bg-indigo-600/10 rounded-full blur-[80px] pointer-events-none" />
+                        {/* 3D Perspective Wrapper */}
+                        <div
+                            className="relative w-[340px] h-[255px]"
+                            style={{ transform: 'perspective(800px) rotateX(55deg) rotateZ(-40deg)', transformStyle: 'preserve-3d' }}
+                        >
+                            {/* Floor Plan Base */}
+                            <div className="absolute inset-0 bg-slate-900/80 rounded-xl border border-indigo-500/40 p-2 shadow-2xl overflow-hidden flex items-center justify-center">
+                                {floorDrawingUrl ? (
+                                    <img src={floorDrawingUrl} alt="Floor Plan" className="w-full h-full object-contain opacity-75" />
+                                ) : (
+                                    <DefaultFloorPlan />
+                                )}
+                            </div>
 
-                {/* 3D Perspective Wrapper */}
-                <div 
-                    className="relative w-[360px] h-[270px] transition-transform duration-700 ease-out"
-                    style={{ 
-                        transform: 'perspective(800px) rotateX(55deg) rotateZ(-40deg)',
-                        transformStyle: 'preserve-3d'
-                    }}
-                >
-                    {/* The Floor Plan Base */}
-                    <div className="absolute inset-0 bg-slate-900/80 rounded-xl border border-indigo-500/40 p-2 shadow-2xl overflow-hidden flex items-center justify-center">
-                        {floorSites.length > 0 && floorSites[0].drawingUrl ? (
-                            <img 
-                                src={floorSites[0].drawingUrl} 
-                                alt="Floor Plan" 
-                                className="w-full h-full object-contain filter invert opacity-80" 
-                            />
-                        ) : (
-                            <DefaultFloorPlan />
-                        )}
+                            {/* Markers — only active sites on this floor */}
+                            {floorSites.map(site => {
+                                const siteLogs = logs.filter(l => l.siteId === site.id);
+                                const hasWarning = siteLogs.some(l => l.riskLevel === '경고' && l.action?.status !== 'RESOLVED');
+                                const hasCaution = siteLogs.some(l => l.riskLevel === '주의' && l.action?.status !== 'RESOLVED');
+                                const x = site.mapX ?? 50;
+                                const y = site.mapY ?? 50;
+                                return (
+                                    <div
+                                        key={site.id}
+                                        className="absolute cursor-pointer group"
+                                        style={{ left: `${x}%`, top: `${y}%`, transform: 'translate(-50%,-50%)', transformStyle: 'preserve-3d' }}
+                                        onClick={() => onSelectSite(site.id)}
+                                    >
+                                        <div className="relative flex flex-col items-center" style={{ transform: 'rotateZ(40deg) rotateX(-55deg) translateZ(10px)', transformStyle: 'preserve-3d' }}>
+                                            <div className="absolute bottom-8 bg-slate-900/90 text-white border border-slate-700 text-[9px] font-bold px-2 py-1 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-30">
+                                                {site.name}
+                                            </div>
+                                            <div className="w-[1.5px] h-5 bg-indigo-400/80" />
+                                            <div className={`w-4 h-4 rounded-full flex items-center justify-center shadow-lg border border-white/40 group-hover:scale-125 transition-transform text-white font-extrabold text-[7px] ${
+                                                hasWarning ? 'bg-rose-500 animate-pulse ring-4 ring-rose-500/50'
+                                                    : hasCaution ? 'bg-amber-500 ring-4 ring-amber-500/30'
+                                                    : 'bg-indigo-500 ring-4 ring-indigo-500/20'
+                                            }`}>{site.floor}</div>
+                                            <div className="absolute top-5 w-7 h-7 rounded-full border opacity-50 pointer-events-none"
+                                                style={{ borderColor: hasWarning ? '#ef4444' : hasCaution ? '#f59e0b' : '#6366f1', animation: 'ping 2s cubic-bezier(0,0,0.2,1) infinite' }}
+                                            />
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
                     </div>
 
-                    {/* Site Markers */}
-                    {floorSites.map(site => {
-                        const siteLogs = logs.filter(l => l.siteId === site.id);
-                        const hasWarning = siteLogs.some(l => l.riskLevel === '경고' && l.action?.status !== 'RESOLVED');
-                        const hasCaution = siteLogs.some(l => l.riskLevel === '주의' && l.action?.status !== 'RESOLVED');
-                        
-                        const x = site.mapX !== undefined ? site.mapX : 50;
-                        const y = site.mapY !== undefined ? site.mapY : 50;
-
-                        return (
-                            <div 
-                                key={site.id}
-                                className="absolute cursor-pointer group"
-                                style={{ 
-                                    left: `${x}%`, 
-                                    top: `${y}%`,
-                                    transform: 'translate(-50%, -50%)',
-                                    transformStyle: 'preserve-3d'
-                                }}
-                                onClick={() => onSelectSite(site.id)}
-                            >
-                                {/* 3D Counter-Rotated Pin standing upright */}
-                                <div 
-                                    className="relative flex flex-col items-center"
-                                    style={{ 
-                                        transform: 'rotateZ(40deg) rotateX(-55deg) translateZ(10px)',
-                                        transformStyle: 'preserve-3d'
-                                    }}
-                                >
-                                    {/* Hover tooltip label */}
-                                    <div className="absolute bottom-8 bg-slate-900/90 text-white border border-slate-700 text-[9px] font-bold px-2 py-1 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-30">
-                                        {site.name} ({site.location || '세부위치 미지정'})
-                                    </div>
-
-                                    {/* Vertical Pole Indicator */}
-                                    <div className="w-[1.5px] h-6 bg-indigo-400/80 shadow-md" />
-
-                                    {/* Floating Glowing Sphere */}
-                                    <div className={`w-4 h-4 rounded-full flex items-center justify-center shadow-lg border border-white/40 transition-transform group-hover:scale-125 duration-200 text-white font-extrabold text-[7px] ${
-                                        hasWarning 
-                                            ? 'bg-rose-500 animate-pulse ring-4 ring-rose-500/50' 
-                                            : hasCaution 
-                                                ? 'bg-amber-500 ring-4 ring-amber-500/30' 
-                                                : 'bg-indigo-500 ring-4 ring-indigo-500/20'
-                                    }`}>
-                                        {site.floor}
-                                    </div>
-
-                                    {/* Ground Projection Ring (Ripple effect) */}
-                                    <div 
-                                        className="absolute top-6 w-8 h-8 rounded-full border opacity-60 pointer-events-none transform -translate-y-1/2 scale-y-[0.5]"
-                                        style={{ 
-                                            borderColor: hasWarning ? '#ef4444' : hasCaution ? '#f59e0b' : '#6366f1',
-                                            transform: 'scale(1)',
-                                            animation: 'ping 2s cubic-bezier(0, 0, 0.2, 1) infinite'
-                                        }}
-                                    />
-                                </div>
-                            </div>
-                        );
-                    })}
-                </div>
-            </div>
-            
-            {/* Map Legend */}
-            <div className="flex flex-wrap gap-4 items-center justify-between text-[10px] text-slate-500 font-bold bg-slate-50 p-2.5 rounded-xl border border-slate-100/50">
-                <div className="flex gap-4 items-center">
-                    <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse" /> 경고 발생 구역 (Warning)</span>
-                    <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-amber-500" /> 주의 필요 구역 (Caution)</span>
-                    <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-indigo-500" /> 정상 공사 현장 (Normal)</span>
-                </div>
-                <span className="text-slate-400">* 마커 오버 시 상세명 표시, 마커 클릭 시 해당 카드 위치로 스크롤 이동합니다.</span>
-            </div>
+                    {/* Legend — compact */}
+                    <div className="flex gap-3 text-[10px] text-slate-500 font-bold">
+                        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" /> 경고</span>
+                        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-500" /> 주의</span>
+                        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-indigo-500" /> 정상</span>
+                        <span className="text-slate-300 ml-auto">마커 클릭 시 해당 현장으로 이동</span>
+                    </div>
+                </>
+            )}
         </div>
     );
 };
@@ -649,20 +619,24 @@ const Dashboard: React.FC<DashboardProps> = ({ logs, sites, assessments, onAddSi
         }
     };
 
-    const handleSvgUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
-        
         const reader = new FileReader();
         reader.onload = (event) => {
             if (event.target?.result) {
-                setSiteForm(prev => ({
-                    ...prev,
-                    drawingUrl: event.target.result as string
-                }));
+                setSiteForm(prev => ({ ...prev, drawingUrl: event.target.result as string, layoutType: 'custom' }));
             }
         };
         reader.readAsDataURL(file);
+    };
+
+    // Draggable pin handler: click on map preview to set X/Y position
+    const handleMapPinClick = (e: React.MouseEvent<HTMLDivElement>) => {
+        const rect = e.currentTarget.getBoundingClientRect();
+        const x = Math.round(((e.clientX - rect.left) / rect.width) * 100);
+        const y = Math.round(((e.clientY - rect.top) / rect.height) * 100);
+        setSiteForm(prev => ({ ...prev, mapX: Math.max(2, Math.min(98, x)), mapY: Math.max(2, Math.min(98, y)) }));
     };
 
     const handleFormSubmit = (e: React.FormEvent) => {
@@ -1446,90 +1420,77 @@ const Dashboard: React.FC<DashboardProps> = ({ logs, sites, assessments, onAddSi
                                     ))}
                                 </div>
                             </div>
-                            {/* 도면 디자인 및 위치 설정 (Advanced Floor Mapping) */}
+                            {/* 도면 등록 및 위치 핀 설정 */}
                             <div className="mt-6 pt-4 border-t border-slate-100">
                                 <h4 className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
-                                    <Map size={16} className="text-indigo-500"/> 3D 입체 도면 매핑 및 위치 설정
+                                    <Map size={16} className="text-indigo-500"/> 도면 등록 및 현장 위치 설정
                                 </h4>
                                 <div className="space-y-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
-                                    <div>
-                                        <label className="block text-xs font-bold text-slate-500 mb-1">도면 유형 (Floor Layout Template)</label>
-                                        <select 
-                                            className="w-full p-3 border rounded-lg bg-white text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500" 
-                                            value={siteForm.layoutType || 'rectangular'} 
-                                            onChange={e => setSiteForm({ ...siteForm, layoutType: e.target.value })}
-                                        >
-                                            <option value="rectangular">표준형 직사각형 레이아웃 (Layout A)</option>
-                                            <option value="l_shape">중앙 통로 L자형 레이아웃 (Layout B)</option>
-                                            <option value="corner">코너 다각형 레이아웃 (Layout C)</option>
-                                            <option value="custom">사용자 직접 업로드 도면 (SVG)</option>
-                                        </select>
-                                    </div>
-                                    
-                                    {siteForm.layoutType === 'custom' ? (
-                                        <div className="space-y-2">
-                                            <label className="block text-xs font-bold text-slate-500 mb-1">도면 파일 업로드 (SVG 파일 선택)</label>
-                                            <div className="flex items-center gap-2">
-                                                <label className="flex items-center gap-1.5 px-3 py-2 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg cursor-pointer text-xs font-bold text-slate-600 transition-colors shadow-sm">
-                                                    <Upload size={14} className="text-indigo-500" />
-                                                    파일 선택
-                                                    <input 
-                                                        type="file" 
-                                                        accept=".svg" 
-                                                        onChange={handleSvgUpload}
-                                                        className="hidden"
-                                                    />
-                                                </label>
-                                                <span className="text-[10px] text-slate-400 truncate max-w-[200px]">
-                                                    {siteForm.drawingUrl ? '✓ SVG 도면이 메모리에 로드되었습니다.' : '선택된 파일 없음'}
-                                                </span>
-                                            </div>
+
+                                    {/* Image Upload — PNG / JPG / SVG 모두 허용 */}
+                                    <div className="space-y-2">
+                                        <label className="block text-xs font-bold text-slate-500">도면 이미지 업로드 (PNG / JPG / SVG)</label>
+                                        <div className="flex items-center gap-2">
+                                            <label className="flex items-center gap-1.5 px-3 py-2 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg cursor-pointer text-xs font-bold text-slate-600 transition-colors shadow-sm">
+                                                <Upload size={14} className="text-indigo-500" />
+                                                이미지 선택
+                                                <input
+                                                    type="file"
+                                                    accept="image/*,.svg"
+                                                    onChange={handleImageUpload}
+                                                    className="hidden"
+                                                />
+                                            </label>
                                             {siteForm.drawingUrl && (
-                                                <div className="relative w-full h-[120px] bg-slate-900 rounded-lg overflow-hidden border border-slate-200 flex items-center justify-center p-2">
-                                                    <img src={siteForm.drawingUrl} alt="Preview" className="max-h-full max-w-full object-contain filter invert opacity-80" />
-                                                    <button 
-                                                        type="button" 
-                                                        onClick={() => setSiteForm(prev => ({ ...prev, drawingUrl: '' }))}
-                                                        className="absolute top-1 right-1 p-1 bg-black/60 hover:bg-black/80 rounded-full text-white text-[10px]"
-                                                    >
-                                                        ✕ 제거
-                                                    </button>
-                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setSiteForm(prev => ({ ...prev, drawingUrl: '' }))}
+                                                    className="text-[10px] text-red-500 hover:text-red-700 font-bold"
+                                                >
+                                                    ✕ 제거
+                                                </button>
                                             )}
                                         </div>
-                                    ) : (
-                                        <div className="text-[10px] text-slate-500 font-semibold bg-indigo-50/50 p-2.5 rounded-lg border border-indigo-100/50">
-                                            💡 선택한 점포 표준형 레이아웃 템플릿에 맞추어 현장의 3D 디지털 트윈 지도가 자동 구성됩니다.
-                                        </div>
-                                    )}
+                                        <p className="text-[10px] text-slate-400">
+                                            {siteForm.drawingUrl ? '✓ 도면이 등록되었습니다.' : '도면을 등록하지 않으면 기본 템플릿 도면이 표시됩니다.'}
+                                        </p>
+                                    </div>
 
-                                    {/* 2D Grid Coordinates Mapping */}
+                                    {/* Drag-to-pin 위치 지정 */}
                                     <div className="space-y-2">
-                                        <div className="flex justify-between items-center">
-                                            <label className="block text-xs font-bold text-slate-500">도면 내 가로/세로 위치 매핑 (X: {siteForm.mapX !== undefined ? siteForm.mapX : 50}%, Y: {siteForm.mapY !== undefined ? siteForm.mapY : 50}%)</label>
-                                        </div>
-                                        <div className="grid grid-cols-2 gap-3">
-                                            <div className="space-y-1">
-                                                <span className="text-[10px] font-bold text-slate-400">가로 좌표 (Left)</span>
-                                                <input 
-                                                    type="range" 
-                                                    min="5" max="95" 
-                                                    className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600" 
-                                                    value={siteForm.mapX !== undefined ? siteForm.mapX : 50} 
-                                                    onChange={e => setSiteForm({ ...siteForm, mapX: Number(e.target.value) })}
-                                                />
+                                        <label className="block text-xs font-bold text-slate-500">
+                                            현장 위치 핀 설정 — 도면을 클릭하여 핀을 이동하세요
+                                        </label>
+                                        <div
+                                            className="relative w-full rounded-xl overflow-hidden border border-slate-200 bg-slate-900 cursor-crosshair"
+                                            style={{ paddingBottom: '60%' }}
+                                            onClick={handleMapPinClick}
+                                        >
+                                            <div className="absolute inset-0 flex items-center justify-center p-3">
+                                                {siteForm.drawingUrl ? (
+                                                    <img
+                                                        src={siteForm.drawingUrl}
+                                                        alt="Floor Plan Preview"
+                                                        className="max-w-full max-h-full object-contain opacity-80 pointer-events-none"
+                                                    />
+                                                ) : (
+                                                    <div className="w-full h-full pointer-events-none"><DefaultFloorPlan /></div>
+                                                )}
+                                                {/* Pin marker */}
+                                                <div
+                                                    className="absolute w-5 h-5 -translate-x-1/2 -translate-y-1/2 pointer-events-none"
+                                                    style={{ left: `${siteForm.mapX ?? 50}%`, top: `${siteForm.mapY ?? 50}%` }}
+                                                >
+                                                    <div className="w-5 h-5 rounded-full bg-rose-500 border-2 border-white shadow-lg flex items-center justify-center animate-pulse">
+                                                        <div className="w-1.5 h-1.5 rounded-full bg-white" />
+                                                    </div>
+                                                    <div className="w-0.5 h-3 bg-rose-500 mx-auto" />
+                                                </div>
                                             </div>
-                                            <div className="space-y-1">
-                                                <span className="text-[10px] font-bold text-slate-400">세로 좌표 (Top)</span>
-                                                <input 
-                                                    type="range" 
-                                                    min="5" max="95" 
-                                                    className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600" 
-                                                    value={siteForm.mapY !== undefined ? siteForm.mapY : 50} 
-                                                    onChange={e => setSiteForm({ ...siteForm, mapY: Number(e.target.value) })}
-                                                />
-                                            </div>
                                         </div>
+                                        <p className="text-[10px] text-slate-400 text-center">
+                                            현재 위치: X {siteForm.mapX ?? 50}% · Y {siteForm.mapY ?? 50}%
+                                        </p>
                                     </div>
                                 </div>
                             </div>
