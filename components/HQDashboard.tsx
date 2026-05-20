@@ -24,6 +24,50 @@ const COLORS = {
     WARNING: '#ef4444', // RED
 };
 
+const renderFormattedText = (text: string) => {
+    if (!text) return null;
+    
+    return text.split('\n').map((line, idx) => {
+        let cleanLine = line.trim();
+        
+        // 1. Headers
+        if (cleanLine.startsWith('###')) {
+            return <h3 key={idx} className="text-sm font-bold text-slate-800 mt-3 mb-1.5">{cleanLine.replace('###', '').trim()}</h3>;
+        }
+        if (cleanLine.startsWith('##')) {
+            return <h2 key={idx} className="text-base font-bold text-slate-800 mt-4 mb-2">{cleanLine.replace('##', '').trim()}</h2>;
+        }
+        if (cleanLine.startsWith('#')) {
+            return <h1 key={idx} className="text-lg font-bold text-slate-950 mt-5 mb-3">{cleanLine.replace('#', '').trim()}</h1>;
+        }
+        
+        // 2. Bullet list items
+        const isBullet = cleanLine.startsWith('-') || cleanLine.startsWith('*');
+        if (isBullet) {
+            cleanLine = cleanLine.substring(1).trim();
+        }
+        
+        // 3. Bold text parsing (**text**)
+        const parts = cleanLine.split('**');
+        const content = parts.map((part, i) => {
+            if (i % 2 === 1) {
+                return <strong key={i} className="font-extrabold text-indigo-700 bg-indigo-50 px-1 rounded">{part}</strong>;
+            }
+            return part;
+        });
+        
+        if (isBullet) {
+            return (
+                <ul key={idx} className="list-disc pl-4 my-1">
+                    <li className="text-xs leading-relaxed text-slate-700">{content}</li>
+                </ul>
+            );
+        }
+        
+        return <p key={idx} className="text-xs leading-relaxed text-slate-700 min-h-[0.75rem]">{content}</p>;
+    });
+};
+
 const HQDashboard: React.FC<HQDashboardProps> = ({ stores, onExit }) => {
     const [sites, setSites] = useState<Site[]>([]);
     const [logs, setLogs] = useState<InspectionLog[]>([]);
@@ -611,8 +655,21 @@ const HQDashboard: React.FC<HQDashboardProps> = ({ stores, onExit }) => {
                                                         <div className="text-xs text-slate-500 mb-3">{site.department} <span className="mx-1">|</span> {site.startDate} ~ {site.endDate}</div>
                                                         
                                                         {site.finalReport ? (
-                                                            <div className="mt-auto pt-4 flex items-center gap-2 text-emerald-600 text-xs font-bold">
-                                                                <ShieldCheck size={14} /> 작성 완료됨
+                                                            <div className="mt-auto pt-4 flex flex-col gap-2">
+                                                                <div className="flex items-center gap-2 text-emerald-600 text-xs font-bold">
+                                                                    <ShieldCheck size={14} /> 작성 완료됨
+                                                                </div>
+                                                                <button 
+                                                                    onClick={() => handleGenerateReport(site)}
+                                                                    disabled={generatingReportId === site.id}
+                                                                    className="w-full py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold shadow-sm transition-all disabled:opacity-50 flex items-center justify-center gap-1.5 border border-slate-200"
+                                                                >
+                                                                    {generatingReportId === site.id ? (
+                                                                        <RefreshCw size={12} className="animate-spin" />
+                                                                    ) : (
+                                                                        <><RefreshCw size={12} /> AI 평가 재작성</>
+                                                                    )}
+                                                                </button>
                                                             </div>
                                                         ) : (
                                                             <button 
@@ -630,8 +687,8 @@ const HQDashboard: React.FC<HQDashboardProps> = ({ stores, onExit }) => {
                                                     </div>
                                                     <div className="p-5 md:w-2/3 flex flex-col justify-center min-h-[120px]">
                                                         {site.finalReport ? (
-                                                            <div className="text-sm font-medium text-slate-700 leading-relaxed p-4 bg-indigo-50/50 rounded-lg border border-indigo-50">
-                                                                "{site.finalReport}"
+                                                            <div className="text-sm font-medium text-slate-700 leading-relaxed p-4 bg-indigo-50/30 rounded-lg border border-indigo-100 space-y-1">
+                                                                {renderFormattedText(site.finalReport)}
                                                             </div>
                                                         ) : (
                                                             <div className="text-center text-slate-400 text-sm flex flex-col items-center">
