@@ -24,48 +24,140 @@ const COLORS = {
     WARNING: '#ef4444', // RED
 };
 
+const parseInlineMarkdown = (text: string) => {
+    const parts = text.split('**');
+    return parts.map((part, i) => {
+        if (i % 2 === 1) {
+            return <strong key={i} className="font-extrabold text-indigo-700 bg-indigo-50 px-1 rounded">{part}</strong>;
+        }
+        return part;
+    });
+};
+
 const renderFormattedText = (text: string) => {
     if (!text) return null;
-    
-    return text.split('\n').map((line, idx) => {
-        let cleanLine = line.trim();
-        
-        // 1. Headers
+
+    const lines = text.split('\n');
+    const elements: React.ReactNode[] = [];
+    let i = 0;
+
+    while (i < lines.length) {
+        const line = lines[i];
+        const cleanLine = line.trim();
+
+        // 1. Markdown Table Parsing
+        if (cleanLine.startsWith('|')) {
+            const tableLines: string[] = [];
+            while (i < lines.length && lines[i].trim().startsWith('|')) {
+                tableLines.push(lines[i].trim());
+                i++;
+            }
+
+            const parsedRows: string[][] = [];
+            let hasHeaders = false;
+
+            tableLines.forEach((tLine) => {
+                const parts = tLine.split('|').map(s => s.trim());
+                if (parts[0] === '') parts.shift();
+                if (parts[parts.length - 1] === '') parts.pop();
+
+                const isDivider = parts.every(p => /^[:-]+$/.test(p));
+                if (isDivider) {
+                    hasHeaders = true;
+                    return;
+                }
+
+                parsedRows.push(parts);
+            });
+
+            if (parsedRows.length > 0) {
+                let headers: string[] = [];
+                let bodyRows: string[][] = [];
+                if (hasHeaders && parsedRows.length > 0) {
+                    headers = parsedRows[0];
+                    bodyRows = parsedRows.slice(1);
+                } else {
+                    bodyRows = parsedRows;
+                }
+
+                elements.push(
+                    <div key={`table-${i}`} className="my-4 overflow-x-auto rounded-xl border border-slate-200/60 shadow-[0_1px_2px_rgba(0,0,0,0.02),0_4px_16px_rgba(0,0,0,0.02)]">
+                        <table className="min-w-full divide-y divide-slate-200">
+                            {headers.length > 0 && (
+                                <thead className="bg-slate-50">
+                                    <tr>
+                                        {headers.map((h, idx) => (
+                                            <th key={idx} className="px-4 py-2.5 text-left text-xs font-bold text-slate-800 tracking-wider">
+                                                {parseInlineMarkdown(h)}
+                                            </th>
+                                        ))}
+                                    </tr>
+                                </thead>
+                            )}
+                            <tbody className="divide-y divide-slate-100 bg-white">
+                                {bodyRows.map((row, rIdx) => (
+                                    <tr key={rIdx} className="hover:bg-slate-50/50 transition-colors">
+                                        {row.map((cell, cIdx) => (
+                                            <td key={cIdx} className="px-4 py-2.5 text-xs text-slate-700 leading-relaxed font-medium">
+                                                {parseInlineMarkdown(cell)}
+                                            </td>
+                                        ))}
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                );
+            }
+            continue;
+        }
+
+        // 2. Headers
         if (cleanLine.startsWith('###')) {
-            return <h3 key={idx} className="text-sm font-bold text-slate-800 mt-3 mb-1.5">{cleanLine.replace('###', '').trim()}</h3>;
+            elements.push(<h3 key={i} className="text-sm font-bold text-slate-800 mt-4 mb-2">{parseInlineMarkdown(cleanLine.replace('###', '').trim())}</h3>);
+            i++;
+            continue;
         }
         if (cleanLine.startsWith('##')) {
-            return <h2 key={idx} className="text-base font-bold text-slate-800 mt-4 mb-2">{cleanLine.replace('##', '').trim()}</h2>;
+            elements.push(<h2 key={i} className="text-base font-bold text-slate-800 mt-5 mb-2.5">{parseInlineMarkdown(cleanLine.replace('##', '').trim())}</h2>);
+            i++;
+            continue;
         }
         if (cleanLine.startsWith('#')) {
-            return <h1 key={idx} className="text-lg font-bold text-slate-950 mt-5 mb-3">{cleanLine.replace('#', '').trim()}</h1>;
+            elements.push(<h1 key={i} className="text-lg font-bold text-slate-950 mt-6 mb-3.5">{parseInlineMarkdown(cleanLine.replace('#', '').trim())}</h1>);
+            i++;
+            continue;
         }
-        
-        // 2. Bullet list items
-        const isBullet = cleanLine.startsWith('-') || cleanLine.startsWith('*');
-        if (isBullet) {
-            cleanLine = cleanLine.substring(1).trim();
-        }
-        
-        // 3. Bold text parsing (**text**)
-        const parts = cleanLine.split('**');
-        const content = parts.map((part, i) => {
-            if (i % 2 === 1) {
-                return <strong key={i} className="font-extrabold text-indigo-700 bg-indigo-50 px-1 rounded">{part}</strong>;
+
+        // 3. Bullet list items
+        if (cleanLine.startsWith('-') || cleanLine.startsWith('*')) {
+            const listItems: string[] = [];
+            while (i < lines.length && (lines[i].trim().startsWith('-') || lines[i].trim().startsWith('*'))) {
+                let item = lines[i].trim();
+                item = item.substring(1).trim();
+                listItems.push(item);
+                i++;
             }
-            return part;
-        });
-        
-        if (isBullet) {
-            return (
-                <ul key={idx} className="list-disc pl-4 my-1">
-                    <li className="text-xs leading-relaxed text-slate-700">{content}</li>
+            elements.push(
+                <ul key={`list-${i}`} className="list-disc pl-5 my-2.5 space-y-1.5">
+                    {listItems.map((item, idx) => (
+                        <li key={idx} className="text-xs leading-relaxed text-slate-700">{parseInlineMarkdown(item)}</li>
+                    ))}
                 </ul>
             );
+            continue;
         }
-        
-        return <p key={idx} className="text-xs leading-relaxed text-slate-700 min-h-[0.75rem]">{content}</p>;
-    });
+
+        // 4. Paragraph or spacing
+        if (cleanLine) {
+            elements.push(<p key={i} className="text-xs leading-relaxed text-slate-700 min-h-[0.75rem] my-2">{parseInlineMarkdown(cleanLine)}</p>);
+        } else {
+            elements.push(<div key={i} className="h-2" />);
+        }
+        i++;
+    }
+
+    return elements;
 };
 
 const HQDashboard: React.FC<HQDashboardProps> = ({ stores, onExit }) => {
