@@ -2,28 +2,6 @@ import { InspectionLog, RiskLevel, Role } from "../types";
 import { functions } from "../firebase";
 import { httpsCallable } from "firebase/functions";
 
-// URL 또는 Base64 이미지를 순수 Base64 데이터로 변환하는 유틸리티
-const fetchAsBase64 = async (urlOrBase64: string): Promise<string> => {
-  if (urlOrBase64.startsWith('data:image')) {
-    return urlOrBase64.replace(/^data:image\/(png|jpg|jpeg|webp);base64,/, "");
-  }
-  try {
-    const response = await fetch(urlOrBase64);
-    const blob = await response.blob();
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64 = reader.result as string;
-        resolve(base64.replace(/^data:image\/(png|jpg|jpeg|webp);base64,/, ""));
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(blob);
-    });
-  } catch (error) {
-    console.error("Failed to fetch image as base64:", error);
-    return "";
-  }
-};
 
 export const generateDailySafetySummary = async (logs: InspectionLog[], dateStr?: string): Promise<string> => {
   const formattedDate = dateStr || (() => {
@@ -60,9 +38,8 @@ export const generateDailySafetySummary = async (logs: InspectionLog[], dateStr?
 
 export const analyzeSafetyPhoto = async (base64Image: string): Promise<{ risk: string, description: string }> => {
   try {
-    const cleanBase64 = await fetchAsBase64(base64Image);
     const analyzePhotoAPI = httpsCallable(functions, 'analyzeSafetyPhoto');
-    const result = await analyzePhotoAPI({ imageBase64: cleanBase64, mimeType: 'image/jpeg' });
+    const result = await analyzePhotoAPI({ imageBase64: base64Image, mimeType: 'image/jpeg' });
     const raw = result.data as any;
     console.log("AI Analysis Raw Result:", raw);
 
@@ -161,18 +138,15 @@ export const generateProjectFinalReport = async (site: { name: string, departmen
 
 export const verifyVisualAction = async (beforePhoto: string, afterPhoto: string, actionNotes: string): Promise<{ isResolved: boolean, feedback: string }> => {
   try {
-    const cleanBefore = await fetchAsBase64(beforePhoto);
-    const cleanAfter = await fetchAsBase64(afterPhoto);
-
-    if (!cleanBefore || !cleanAfter) {
-      return { isResolved: true, feedback: "이미지를 변환할 수 없어 시각 검수를 생략합니다." };
+    if (!beforePhoto || !afterPhoto) {
+      return { isResolved: true, feedback: "사진이 없어 시각 검수를 생략합니다." };
     }
 
     const verifyActionAPI = httpsCallable(functions, 'verifyVisualAction');
     const result = await verifyActionAPI({
-      beforeBase64: cleanBefore,
+      beforeBase64: beforePhoto,
       beforeMimeType: 'image/jpeg',
-      afterBase64: cleanAfter,
+      afterBase64: afterPhoto,
       afterMimeType: 'image/jpeg',
       actionNotes: actionNotes
     });
