@@ -7,7 +7,7 @@ import HQDashboard from './components/HQDashboard';
 import SiteDetail from './components/SiteDetail';
 import { RiskAssessment } from './components/RiskAssessment';
 import { ApprovalDashboard, ApproverRole } from './components/ApprovalDashboard';
-import { LayoutDashboard, HardHat, Bell, Building2, ChevronRight, MapPin, ShieldCheck, LogOut, Lock, X, KeyRound, Store as StoreIcon, ArrowLeft, Search, ShoppingBag, Briefcase, Globe, FileCheck } from 'lucide-react';
+import {  LayoutDashboard, HardHat, Bell, Building2, ChevronRight, MapPin, ShieldCheck, LogOut, Lock, X, KeyRound, Store as StoreIcon, ArrowLeft, Search, ShoppingBag, Briefcase, Globe, FileCheck , ShieldAlert } from 'lucide-react';
 import { subscribeToSites, subscribeToLogs, addSite, updateSite, deleteSite, addLog, subscribeToRiskAssessments } from './services/firestore';
 
 // --- Mock Data (초기 데이터) ---
@@ -70,6 +70,8 @@ const App: React.FC = () => {
   // Support Team Password Modal State
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
+  const [showRiskAppModal, setShowRiskAppModal] = useState(false);
+  const [riskAppPasswordInput, setRiskAppPasswordInput] = useState('');
 
   // Approval Auth State
   const [approvalRole, setApprovalRole] = useState<ApproverRole | null>(null);
