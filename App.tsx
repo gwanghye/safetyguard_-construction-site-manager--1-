@@ -111,7 +111,7 @@ const App: React.FC = () => {
   useEffect(() => {
     const handleOnline = async () => {
       const { getOfflineActions, removeOfflineAction } = await import('./services/offlineSync');
-      const { uploadMultipleImages } = await import('./services/storageService');
+      // const { uploadMultipleImages } = await import('./services/storageService');
       const { addLog, updateLog } = await import('./services/firestore');
 
       const offlineActions = getOfflineActions();
@@ -123,17 +123,17 @@ const App: React.FC = () => {
           try {
             if (action.type === 'ADD_LOG') {
               const logData = action.payload;
-              if (logData.photos && logData.photos.length > 0) {
-                 logData.photos = await uploadMultipleImages(logData.photos, 'inspections');
-              }
+              // if (logData.photos && logData.photos.length > 0) {
+              //    logData.photos = await uploadMultipleImages(logData.photos, 'inspections');
+              // }
               await addLog(logData, logData.storeId || activeStore?.id);
               removeOfflineAction(action.id);
             } else if (action.type === 'UPDATE_LOG') {
               const { logId, actionPhotos, actionNotes } = action.payload;
-              let uploadedActionPhotos: string[] = [];
-              if (actionPhotos && actionPhotos.length > 0) {
-                 uploadedActionPhotos = await uploadMultipleImages(actionPhotos, 'actions');
-              }
+              let uploadedActionPhotos: string[] = actionPhotos || [];
+              // if (actionPhotos && actionPhotos.length > 0) {
+              //    uploadedActionPhotos = await uploadMultipleImages(actionPhotos, 'actions');
+              // }
               
               // Find the local log to update
               const log = logs.find(l => l.id === logId);
@@ -250,9 +250,9 @@ const App: React.FC = () => {
     try {
       await addLog(logData, activeStore.id);
       setScannedSiteId(null);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error adding log:", error);
-      alert("일지 등록 중 오류가 발생했습니다. (네트워크 불안정 또는 용량 초과)");
+      alert(`일지 등록 중 오류가 발생했습니다. (네트워크 불안정 또는 용량 초과)\n상세: ${error.message || error}`);
       throw error; // 에러를 상위(FieldWork)로 던져서 모달이 닫히지 않게 함
     }
   };

@@ -37,7 +37,7 @@ const SiteDetail: React.FC<SiteDetailProps> = ({ site, logs, currentRole, onBack
                 const reader = new FileReader();
                 reader.onloadend = async () => {
                     const originalBase64 = reader.result as string;
-                    const compressedBase64 = await compressImage(originalBase64);
+                    const compressedBase64 = await compressImage(originalBase64, 400, 0.5); // 강력하게 압축 (Firestore 1MB 초과 방지)
                     setActionPhotos(prev => [...prev, compressedBase64]);
                 };
                 reader.readAsDataURL(file as File);
@@ -76,8 +76,9 @@ const SiteDetail: React.FC<SiteDetailProps> = ({ site, logs, currentRole, onBack
                     return;
                 }
 
-                // Storage에 조치 사진 업로드
-                const uploadedActionPhotos = await uploadMultipleImages(actionPhotos, 'actions');
+                // Storage에 조치 사진 업로드 (권한 에러 방지 위해 우회)
+                // const uploadedActionPhotos = await uploadMultipleImages(actionPhotos, 'actions');
+                const uploadedActionPhotos = actionPhotos;
 
                 // [업그레이드] 텍스트가 아닌 사진 비교 판독을 호출
                 // actionPhotos[0]는 아직 Base64이므로 AI API에 직접 전달 가능

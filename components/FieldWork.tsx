@@ -54,7 +54,7 @@ const FieldWork: React.FC<FieldWorkProps> = ({ siteId, sites, currentRole, onSub
                 reader.onload = async (event) => {
                     try {
                         const originalBase64 = event.target?.result as string;
-                        const compressedBase64 = await compressImage(originalBase64);
+                        const compressedBase64 = await compressImage(originalBase64, 400, 0.5); // 강력하게 압축 (Firestore 1MB 용량 초과 방지)
                         
                         const isFirstPhoto = photos.length === 0;
                         setPhotos(prev => [...prev, compressedBase64]);
@@ -131,14 +131,15 @@ const FieldWork: React.FC<FieldWorkProps> = ({ siteId, sites, currentRole, onSub
                 return;
             }
 
-            const uploadedPhotoUrls = await uploadMultipleImages(photos, 'inspections');
+            // Firebase Storage 권한/초기화 에러를 방지하기 위해 Firestore(1MB 제한)에 직접 저장하도록 강력하게 압축합니다
+            // const uploadedPhotoUrls = await uploadMultipleImages(photos, 'inspections');
 
             const newLog: Omit<InspectionLog, 'id'> = {
                 siteId: site.id,
                 siteName: site.name,
                 workType: workType,
                 timestamp: Date.now(),
-                photos: uploadedPhotoUrls,
+                photos: photos, // Storage 대신 직접 Base64 저장
                 riskLevel: risk,
                 notes,
                 inspector: inspectorName,

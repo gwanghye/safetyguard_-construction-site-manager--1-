@@ -122,11 +122,27 @@ exports.scheduledDailyInspectionAlert = onSchedule({
   }
 });
 
+async function resolveImageAsBase64(urlOrBase64) {
+  if (urlOrBase64.startsWith('http')) {
+    try {
+      const res = await fetch(urlOrBase64);
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+      const buffer = await res.arrayBuffer();
+      return Buffer.from(buffer).toString('base64');
+    } catch (e) {
+      logger.error("Failed to fetch image from URL:", urlOrBase64, e);
+      throw new Error("이미지 URL을 불러올 수 없습니다.");
+    }
+  }
+  return urlOrBase64.replace(/^data:image\/(png|jpg|jpeg|webp);base64,/, "");
+}
+
 // 1. analyzeSafetyPhoto
 exports.analyzeSafetyPhoto = onCall({ region: "asia-northeast3", enforceAppCheck: false }, async (request) => {
   try {
     const { imageBase64, mimeType } = request.data;
     if (!imageBase64) throw new HttpsError('invalid-argument', 'Image data is missing');
+    const cleanBase64 = await resolveImageAsBase64(imageBase64);
     logger.info("analyzeSafetyPhoto 요청 수신");
 
     const ai = getGeminiClient();
@@ -157,7 +173,7 @@ exports.analyzeSafetyPhoto = onCall({ region: "asia-northeast3", enforceAppCheck
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",
       contents: [
-        { role: 'user', parts: [ { text: prompt }, { inlineData: { data: imageBase64, mimeType: mimeType || 'image/jpeg' } } ] }
+        { role: 'user', parts: [ { text: prompt }, { inlineData: { data: cleanBase64, mimeType: mimeType || 'image/jpeg' } } ] }
       ],
       config: { responseMimeType: "application/json" }
     });
@@ -178,6 +194,8 @@ exports.analyzeSafetyPhoto = onCall({ region: "asia-northeast3", enforceAppCheck
 exports.verifyVisualAction = onCall({ region: "asia-northeast3" }, async (request) => {
   try {
     const { beforeBase64, beforeMimeType, afterBase64, afterMimeType } = request.data;
+    const cleanBefore = await resolveImageAsBase64(beforeBase64);
+    const cleanAfter = await resolveImageAsBase64(afterBase64);
     const ai = getGeminiClient();
     const prompt = `당신은 건설 안전 감리관입니다.
 첫 번째 이미지는 조치 전, 두 번째 이미지는 조치 후 상태입니다.
@@ -193,8 +211,8 @@ exports.verifyVisualAction = onCall({ region: "asia-northeast3" }, async (reques
       model: "gemini-2.5-flash",
       contents: [{ role: 'user', parts: [
         { text: prompt },
-        { inlineData: { data: beforeBase64, mimeType: beforeMimeType || 'image/jpeg' } },
-        { inlineData: { data: afterBase64, mimeType: afterMimeType || 'image/jpeg' } }
+        { inlineData: { data: cleanBefore, mimeType: beforeMimeType || 'image/jpeg' } },
+        { inlineData: { data: cleanAfter, mimeType: afterMimeType || 'image/jpeg' } }
       ] }],
       config: { responseMimeType: "application/json" }
     });
