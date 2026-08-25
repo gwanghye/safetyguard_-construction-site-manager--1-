@@ -47,7 +47,7 @@ export const sendAlimTalk = async (site: Site, missingRoles: Role[]): Promise<{ 
     return { success: false, message: "발송할 대상자 연락처가 없습니다." };
   }
 
-  const appUrl = "https://gwanghye.github.io/safetyguard_-construction-site-manager--1-/";
+  const appUrl = "https://safetyguard.pages.dev/";
   const subject = `[현장 점검 안내]`;
   const message = `[Safety Guard]\n${site.name} 현장 담당자님, 오늘 현장 안전 점검이 누락되었습니다.\n지금 바로 접속하여 일일 점검을 완료해 주세요!\n\n접속링크: ${appUrl}`;
 
@@ -92,7 +92,7 @@ export const sendAssessmentApprovalAlert = async (roleName: string, site: Site):
   }
 
   const subject = `[수시위험성평가 결재 요청]`;
-  const message = `[Safety Guard]\n${site.name} 수시위험성평가 결재 요청\n${roleName} 단계\n접속링크: https://gwanghye.github.io/safetyguard_-construction-site-manager--1-/`;
+  const message = `[Safety Guard]\n${site.name} 수시위험성평가 결재 요청\n${roleName} 단계\n접속링크: https://safetyguard.pages.dev/`;
 
   return await sendNiceSmsLms(validReceivers, subject, message);
 };
