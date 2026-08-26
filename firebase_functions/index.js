@@ -41,7 +41,7 @@ async function sendSmsInternal(receivers, subject, message) {
   try {
     const apiRes = await fetch('https://sms.nicesms.co.kr/cpmms_utf8/cplms.html', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Referer': 'https://gwanghye.github.io/', 'Origin': 'https://gwanghye.github.io' },
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Referer': 'https://safetyguard.pages.dev/', 'Origin': 'https://safetyguard.pages.dev' },
       body: formData.toString()
     });
     const resultText = await apiRes.text();
@@ -110,7 +110,7 @@ exports.scheduledDailyInspectionAlert = onSchedule({
         });
         const uniqueReceivers = [...new Set(receivers)];
         if (uniqueReceivers.length > 0) {
-          const appUrl = "https://gwanghye.github.io/safetyguard_-construction-site-manager--1-/";
+          const appUrl = "https://safetyguard.pages.dev/";
           const result = await sendSmsInternal(uniqueReceivers, `[현장 점검 안내]`, `[Safety Guard]\n${site.name} 현장 담당자님, 오늘 현장 안전 점검이 누락되었습니다.\n지금 바로 접속해 주세요!\n\n${appUrl}`);
           if (result.success) totalSent++;
         }
