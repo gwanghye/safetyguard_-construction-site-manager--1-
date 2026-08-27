@@ -26,9 +26,13 @@ const SiteDetail: React.FC<SiteDetailProps> = ({ site, logs, currentRole, onBack
     const [isSubmittingAction, setIsSubmittingAction] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
 
-    // 이 현장의 점검 로그 중 현재 역할(Role)이 지적한 미조치 Warning 로그들만 필터링
+    // 이 현장의 점검 로그 중 미조치 Warning 필터링 (영업관리는 모든 직렬의 지적사항을 확인하고 조치함)
     const siteLogs = logs.filter(l => l.siteId === site.id);
-    const pendingWarnings = siteLogs.filter(l => l.riskLevel === RiskLevel.WARNING && (!l.action || l.action.status === 'PENDING') && l.inspectorRole === currentRole);
+    const pendingWarnings = siteLogs.filter(l => {
+        const isPendingWarning = l.riskLevel === RiskLevel.WARNING && (!l.action || l.action.status === 'PENDING');
+        if (currentRole === Role.SALES) return isPendingWarning; // 영업관리는 시설, 안전, 영업 전체의 미조치 내역을 모두 본다
+        return isPendingWarning && l.inspectorRole === currentRole; // 그 외(시설, 안전)는 자신이 지적한 내역만 본다
+    });
 
     const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = e.target.files;
