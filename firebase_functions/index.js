@@ -41,7 +41,7 @@ async function sendSmsInternal(receivers, subject, message) {
   try {
     const apiRes = await fetch('https://sms.nicesms.co.kr/cpmms_utf8/cplms.html', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Referer': 'https://safetyguard.pages.dev/', 'Origin': 'https://safetyguard.pages.dev' },
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Referer': 'https://gwanghye.github.io/', 'Origin': 'https://gwanghye.github.io' },
       body: formData.toString()
     });
     const resultText = await apiRes.text();
