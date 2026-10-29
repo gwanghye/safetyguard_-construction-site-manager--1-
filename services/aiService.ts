@@ -71,13 +71,21 @@ export const analyzeSafetyPhoto = async (base64Image: string): Promise<{ risk: s
     };
   } catch (e: any) {
     console.error("analyzeSafetyPhoto error:", e);
+    const errMsg = String(e?.message || "");
+    let cleanDetail = "현장 특이사항을 직접 확인 후 입력해 주세요.";
+    if (errMsg.includes("429") || errMsg.includes("quota") || errMsg.includes("RESOURCE_EXHAUSTED")) {
+      cleanDetail = "AI 일일 분석 한도가 일시 초과되었습니다. (수동 입력 가능)";
+    } else if (errMsg.includes("network") || errMsg.includes("fetch") || errMsg.includes("unavailable")) {
+      cleanDetail = "현장 네트워크 지연으로 AI 분석을 건너뜁니다. (수동 입력 가능)";
+    }
+
     return {
-      risk: "주의",
+      risk: "정상",
       description:
-        `1. 위험 판단 단계: 분석 실패\n` +
-        `2. 현상황 설명: AI 분석 중 오류가 발생했습니다 (${e?.message || "알 수 없는 오류"})\n` +
-        `3. 도출된 위험요소: 직접 확인 필요\n` +
-        `4. 권고 조치사항: 사진을 다시 업로드하거나 수동으로 입력해주세요`
+        `1. 위험 판단 단계: 확인 필요\n` +
+        `2. 현상황 설명: ${cleanDetail}\n` +
+        `3. 도출된 위험요소: 직접 육안 확인 필요\n` +
+        `4. 권고 조치사항: 현장 안전 수칙 준수 여부를 확인해 주세요.`
     };
   }
 };

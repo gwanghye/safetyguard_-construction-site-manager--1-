@@ -137,6 +137,30 @@ async function resolveImageAsBase64(urlOrBase64) {
   return urlOrBase64.replace(/^data:image\/(png|jpg|jpeg|webp);base64,/, "");
 }
 
+async function generateContentWithFallback(ai, params, preferredModel = "gemini-2.5-flash", fallbackModel = "gemini-1.5-flash") {
+  try {
+    logger.info(`[AI 호출] ${preferredModel} 시도`);
+    return await ai.models.generateContent({
+      model: preferredModel,
+      ...params
+    });
+  } catch (error) {
+    logger.warn(`[AI 1차 실패] ${preferredModel} 실패. ${fallbackModel}로 자동 전환 시도. 에러: ${error.message}`);
+    if (fallbackModel && preferredModel !== fallbackModel) {
+      try {
+        return await ai.models.generateContent({
+          model: fallbackModel,
+          ...params
+        });
+      } catch (fallbackError) {
+        logger.error(`[AI 2차 실패] ${fallbackModel}도 실패:`, fallbackError.message);
+        throw fallbackError;
+      }
+    }
+    throw error;
+  }
+}
+
 // 1. analyzeSafetyPhoto
 exports.analyzeSafetyPhoto = onCall({ region: "asia-northeast3", enforceAppCheck: false }, async (request) => {
   try {
@@ -170,13 +194,12 @@ exports.analyzeSafetyPhoto = onCall({ region: "asia-northeast3", enforceAppCheck
   "recommendations": ["조치 키워드"]
 }`;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+    const response = await generateContentWithFallback(ai, {
       contents: [
         { role: 'user', parts: [ { text: prompt }, { inlineData: { data: cleanBase64, mimeType: mimeType || 'image/jpeg' } } ] }
       ],
       config: { responseMimeType: "application/json" }
-    });
+    }, "gemini-2.5-flash", "gemini-1.5-flash");
 
     const resultText = response.text || "{}";
     logger.info("AI 응답 수신", { length: resultText.length });
@@ -207,15 +230,14 @@ exports.verifyVisualAction = onCall({ region: "asia-northeast3" }, async (reques
   "verificationDetails": "판독 사유 설명",
   "remainingHazards": []
 }`;
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+    const response = await generateContentWithFallback(ai, {
       contents: [{ role: 'user', parts: [
         { text: prompt },
         { inlineData: { data: cleanBefore, mimeType: beforeMimeType || 'image/jpeg' } },
         { inlineData: { data: cleanAfter, mimeType: afterMimeType || 'image/jpeg' } }
       ] }],
       config: { responseMimeType: "application/json" }
-    });
+    }, "gemini-2.5-flash", "gemini-1.5-flash");
     const cleanJson = (response.text || "{}").replace(/```json/g, "").replace(/```/g, "").trim();
     return JSON.parse(cleanJson);
   } catch (error) {
@@ -230,10 +252,9 @@ exports.generateDailySafetySummary = onCall({ region: "asia-northeast3" }, async
     const { logsData } = request.data;
     const ai = getGeminiClient();
     const prompt = `당신은 건설 안전 종합 분석관입니다. 오늘의 현장 안전 점검 데이터를 기반으로 일일 안전 브리핑을 3~4문단으로 작성해 주세요.\n\n[오늘 점검 데이터]\n${logsData}`;
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+    const response = await generateContentWithFallback(ai, {
       contents: [{ role: 'user', parts: [{ text: prompt }] }]
-    });
+    }, "gemini-2.5-flash", "gemini-1.5-flash");
     return { summary: response.text || "" };
   } catch (error) {
     logger.error("generateDailySafetySummary error:", error);
@@ -247,10 +268,9 @@ exports.generateProjectFinalReport = onCall({ region: "asia-northeast3" }, async
     const { siteData, logsData } = request.data;
     const ai = getGeminiClient();
     const prompt = `당신은 최고 책임 건설 안전 감리관입니다. 공사 종료 종합 안전 보고서를 전문적으로 작성해 주세요.\n\n[현장 정보]\n${siteData}\n\n[점검 기록]\n${logsData}`;
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-pro",
+    const response = await generateContentWithFallback(ai, {
       contents: [{ role: 'user', parts: [{ text: prompt }] }]
-    });
+    }, "gemini-2.5-pro", "gemini-1.5-pro");
     return { report: response.text || "" };
   } catch (error) {
     logger.error("generateProjectFinalReport error:", error);
